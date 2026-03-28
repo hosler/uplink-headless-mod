@@ -4,6 +4,32 @@ A reverse-engineered headless multiplayer server and modern Python/Pygame client
 
 The server runs the original game logic without any GUI, exposing a TCP/JSON API with 40 commands. The Pygame client connects to it and provides a full cyberpunk hacker interface inspired by [UplinkOS](https://www.moddb.com/mods/uplink-os).
 
+## Screenshots
+
+![Login](screenshots/01_login.png)
+*Agent login screen*
+
+![Browser](screenshots/03_gateway_browser.png)
+*Browser tab — saved server bookmarks*
+
+![Map](screenshots/04_map.png)
+*World map — server nodes with bounce routing*
+
+![InterNIC](screenshots/11_server_connected.png)
+*Connected to InterNIC with app sidebar*
+
+![Gateway](screenshots/06_gateway.png)
+*Gateway tab — hardware stats, memory bar, file table*
+
+![Missions](screenshots/07_missions.png)
+*Missions tab — active mission list with detail panel*
+
+![Software](screenshots/09_software.png)
+*Software sales — buy tools with affordability coloring*
+
+![Hardware](screenshots/10_hardware.png)
+*Hardware upgrades — CPUs, modems, memory*
+
 ## Features
 
 ### Headless Server

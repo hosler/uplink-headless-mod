@@ -188,18 +188,18 @@ d.join()
 # Search for any server with "Government" (they have LANs)
 m = d.cmd({'cmd':'search','query':'Government'}, 'search')
 if m:
-    results = m.get('results', [])
-    log(d, f'Search "Government": {len(results)} results')
-    for res in results[:5]:
+    search_results = m.get('results', [])
+    log(d, f'Search "Government": {len(search_results)} results')
+    for res in search_results[:5]:
         log(d, f'  {res["ip"]} - {res["name"]} (type={res["type"]})')
-    check('InterNIC search works', len(results) > 0)
+    check('InterNIC search works', len(search_results) > 0)
 else:
     check('InterNIC search works', False)
-    results = []
+    search_results = []
 
 # Find LAN from the Government search results (OID_LANCOMPUTER = 15)
 lan_ip = None
-for res in results:
+for res in search_results:
     if res['type'] == 15:  # OID_LANCOMPUTER
         lan_ip = res['ip']
         log(d, f'Found LAN: {res["ip"]} - {res["name"]}')
