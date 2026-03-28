@@ -469,6 +469,20 @@ ComputerScreen *RemoteInterface::GetComputerScreen ()
 
 }
 
+bool RemoteInterface::HasScreen ()
+{
+	return screen != NULL;
+}
+
+void RemoteInterface::ClearScreen ()
+{
+	if ( screen ) {
+		screen->Remove();
+		delete screen;
+		screen = NULL;
+	}
+}
+
 bool RemoteInterface::Load ( FILE *file )
 {
 

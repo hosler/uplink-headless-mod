@@ -86,6 +86,7 @@ public:
 	GatewayDef *GetGatewayDef ( char *name );
 
 	Player    *GetPlayer     ();						//  Asserts that player exists
+	void       SwapPlayer   ( Player *newplayer );	//  Headless multiplayer: swap PLAYER BTree entry
 
 	// Common functions
 

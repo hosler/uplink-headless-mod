@@ -74,6 +74,7 @@ CXXFLAGS += $(INCLUDES) -w -D_REENTRANT
 SOURCES= \
 app/binreloc.cpp \
 app/app.cpp \
+app/headless_loop.cpp \
 app/dos2unix.cpp \
 app/miscutils.cpp \
 app/opengl.cpp \
@@ -198,6 +199,8 @@ mainmenu/theme_interface.cpp \
 mainmenu/theteam_interface.cpp \
 mainmenu/warezgameover_interface.cpp \
 network/clientconnection.cpp \
+network/headless_server.cpp \
+network/player_session.cpp \
 network/interfaces/clientcommsinterface.cpp \
 network/interfaces/clientstatusinterface.cpp \
 network/interfaces/networkscreen.cpp \

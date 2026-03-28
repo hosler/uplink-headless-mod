@@ -26,6 +26,9 @@ int get_mouseY ();
 void setcallbacks ();
 
 void display ();
+
+void opengl_inject_keyboard ( unsigned char key, int x, int y );
+void opengl_inject_mouse ( int button, int state, int x, int y );
 //void keyboard(unsigned char key, int x, int y);
 //void specialkeyboard (int key, int x, int y);
 //void idle ();

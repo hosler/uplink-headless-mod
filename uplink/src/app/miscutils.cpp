@@ -476,7 +476,7 @@ void PrintStackTrace()
 	}
 #else
 	asm (
-	    "movl %%ebp, %0;"
+	    "movq %%rbp, %0;"
 	    :"=r"(framePtr)
 	    );
 #endif

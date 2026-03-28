@@ -1,0 +1,2 @@
+#!/bin/sh
+exec gcc -Wno-implicit-int -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types -std=gnu89 "$@"

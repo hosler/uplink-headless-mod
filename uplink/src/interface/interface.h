@@ -49,6 +49,9 @@ public:
 	LocalInterface  *GetLocalInterface  ();				// Asserts li
 	RemoteInterface *GetRemoteInterface ();				// Asserts ri
 	TaskManager     *GetTaskManager     ();				// Asserts tm
+
+	void SwapRemoteInterface ( RemoteInterface *newri, RemoteInterface **oldri );
+	void SwapTaskManager ( TaskManager *newtm, TaskManager **oldtm );
 	
 
 	// Common functions

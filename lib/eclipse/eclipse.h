@@ -113,6 +113,8 @@ int  EclLookupIndex ( char *name );				// Can change
 char *EclGetButtonAtCoord ( int x, int y );
 char *EclGetHighlightedButton ();
 Button *EclGetButton ( char *name );
+int EclGetNumButtons ();
+Button *EclGetButtonByIndex ( int index );	// Returns NULL if invalid
 
 
 // Animation functions ========================================================

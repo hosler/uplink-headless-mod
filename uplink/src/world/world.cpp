@@ -382,6 +382,13 @@ Player *World::GetPlayer ()
 
 }
 
+void World::SwapPlayer ( Player *newplayer )
+{
+	BTree <Person *> *node = people.LookupTree ( "PLAYER" );
+	UplinkAssert ( node );
+	node->data = (Person *) newplayer;
+}
+
 bool World::Load ( FILE *file )
 {
 	

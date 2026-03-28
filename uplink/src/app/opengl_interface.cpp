@@ -189,13 +189,15 @@ void button_draw ( Button *button, bool highlighted, bool clicked )
 
 void imagebutton_draw ( Button *button, bool highlighted, bool clicked )
 {
+	extern bool g_headless;
+	if ( g_headless ) return;
 
 	int screenheight = app->GetOptions ()->GetOptionValue ( "graphics_screenheight" );
-	glScissor ( button->x, screenheight - (button->y + button->height), button->width, button->height );	
+	glScissor ( button->x, screenheight - (button->y + button->height), button->width, button->height );
 	glEnable ( GL_SCISSOR_TEST );
 
 	UplinkAssert (button);
-	
+
 	if ( clicked && button->image_clicked ) {
 		button->image_clicked->Draw ( button->x, button->y );
 	}
@@ -213,6 +215,8 @@ void imagebutton_draw ( Button *button, bool highlighted, bool clicked )
 
 void imagebutton_draw ( Button *button, bool highlighted, bool clicked, Image *standard_i_ref, Image *highlighted_i_ref, Image *clicked_i_ref )
 {
+	extern bool g_headless;
+	if ( g_headless ) return;
 
 	int screenheight = app->GetOptions ()->GetOptionValue ( "graphics_screenheight" );
 	glScissor ( button->x, screenheight - (button->y + button->height), button->width, button->height );	
@@ -236,6 +240,8 @@ void imagebutton_draw ( Button *button, bool highlighted, bool clicked, Image *s
 
 void imagebutton_draw_blend ( Button *button, bool highlighted, bool clicked )
 {
+	extern bool g_headless;
+	if ( g_headless ) return;
 
 	int screenheight = app->GetOptions ()->GetOptionValue ( "graphics_screenheight" );
 	glScissor ( button->x, screenheight - (button->y + button->height), button->width, button->height );	

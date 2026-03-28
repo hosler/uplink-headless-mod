@@ -898,6 +898,18 @@ Button *EclGetButton ( char *name )
 
 }
 
+int EclGetNumButtons ()
+{
+	return buttons.Size();
+}
+
+Button *EclGetButtonByIndex ( int index )
+{
+	if ( index >= 0 && index < buttons.Size() && buttons.ValidIndex(index) )
+		return buttons[index];
+	return NULL;
+}
+
 void EclEnableAnimations ()
 {
 

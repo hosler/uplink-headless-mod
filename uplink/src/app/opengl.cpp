@@ -345,7 +345,7 @@ void display(void)
 
 		glTranslatef ( 0.375f, 0.375f, 0.0f );
 
-		// Added by François for testing new display
+		// Added by Franï¿½ois for testing new display
 		EclClearRectangle ( 0, 0, app->GetOptions ()->GetOptionValue ( "graphics_screenwidth" ), 
 								  app->GetOptions ()->GetOptionValue ( "graphics_screenheight" ) );
         
@@ -739,12 +739,22 @@ void resize(int width, int height)
 
 void setcallbacks ()
 {
-	GciDisplayFunc(display);	
+	GciDisplayFunc(display);
 	GciMouseFunc(mouse);
 	GciMotionFunc(mousemove);
 	GciPassiveMotionFunc(passivemouse);
 	GciKeyboardFunc(keyboard);
 	GciSpecialFunc(specialkeyboard);
 	GciIdleFunc (idle);
-	GciReshapeFunc(resize);  
+	GciReshapeFunc(resize);
+}
+
+void opengl_inject_keyboard ( unsigned char key, int x, int y )
+{
+    keyboard ( key, x, y );
+}
+
+void opengl_inject_mouse ( int button, int state, int x, int y )
+{
+    mouse ( button, state, x, y );
 }

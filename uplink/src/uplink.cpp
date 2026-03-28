@@ -70,10 +70,16 @@
 #include "game/scriptlibrary.h"
 #include "game/game.h"
 
+#include "app/headless_loop.h"
+#include "network/headless_server.h"
+
 #include "mmgr.h"
 
 // ============================================================================
 // Initialisation functions
+
+extern bool g_headless;
+extern int g_headless_port;
 
 void RunUplink ( int argc, char **argv );
 int RunUplinkExceptionHandling ();
@@ -392,6 +398,14 @@ void RunUplink ( int argc, char **argv )
 		}
 
 			
+		// Check for --headless flag before anything else
+		for ( int i = 1; i < argc; i++ ) {
+			if ( strcmp(argv[i], "--headless") == 0 ) g_headless = true;
+			if ( strcmp(argv[i], "--port") == 0 && i+1 < argc )
+				g_headless_port = atoi(argv[i+1]);
+		}
+		if ( g_headless ) printf ( "=== HEADLESS MODE (port %d) ===\n", g_headless_port );
+
 		// Initialise each of the modules
 
 #ifdef WIN32
@@ -409,28 +423,35 @@ void RunUplink ( int argc, char **argv )
 		}
 #endif
 
-		if ( !VerifyLegitAndCodeCardCheck() ) {
+		if ( !g_headless && !VerifyLegitAndCodeCardCheck() ) {
 			Cleanup_Uplink ();
 			return;
 		}
 #endif
 
 		if( !Load_Data() ) {
+			printf ( "Failed to load data files. Run from the game/ directory.\n" );
 			Cleanup_Uplink ();
 			return;
 		}
 
 		Init_Game     ();
-		Init_Graphics ();
-		Init_OpenGL   ( argc, argv );
-		Init_Fonts	  ();
-		Init_Sound    ();
-		Init_Music    ();
 
-		// Run everything
+		if ( !g_headless ) {
+			Init_Graphics ();
+			Init_OpenGL   ( argc, argv );
+			Init_Fonts	  ();
+			Init_Sound    ();
+			Init_Music    ();
 
-		Run_MainMenu  ();
-		Run_Game      ();
+			Run_MainMenu  ();
+			Run_Game ();
+		} else {
+			headless_initialise ();
+			HeadlessServer::Initialise ( g_headless_port );
+			headless_run ();
+			headless_close ();
+		}
 
 		// Clean up
 

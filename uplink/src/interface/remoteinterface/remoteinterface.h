@@ -98,7 +98,9 @@ public:
 	bool IsVisible ();
 
 	RemoteInterfaceScreen *GetInterfaceScreen ();			// Asserts screen
-	ComputerScreen *GetComputerScreen ();					
+	ComputerScreen *GetComputerScreen ();
+	bool HasScreen ();									// Returns true if screen is non-NULL
+	void ClearScreen ();								// Remove + delete current screen					
 
 	// Common functions
 

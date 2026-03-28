@@ -597,9 +597,10 @@ void App::Update ()
 
 	UplinkAssert ( game );
 
-	if ( game->GameSpeed () == GAMESPEED_GAMEOVER || 
+	extern bool g_headless;
+	if ( !g_headless && ( game->GameSpeed () == GAMESPEED_GAMEOVER ||
 		( game->IsRunning () &&
-		  game->GetWorld ()->GetPlayer ()->gateway.nuked ) ) {
+		  game->GetWorld ()->GetPlayer ()->gateway.nuked ) ) ) {
 
 		if ( phoneDial )
 			UnRegisterPhoneDialler ( phoneDial );

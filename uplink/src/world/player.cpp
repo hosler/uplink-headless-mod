@@ -308,8 +308,12 @@ int Player::TimeToTrace ( char *tracerIP, char *routerIP )
 
 }
 
+bool g_headless_player_update_allowed = false;
+
 void Player::Update ()
 {
+	extern bool g_headless;
+	if ( g_headless && !g_headless_player_update_allowed ) return;
 
 	Agent::Update ();
 

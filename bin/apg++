@@ -1,0 +1,2 @@
+#!/bin/sh
+exec g++ -fpermissive -Wno-narrowing -Wno-write-strings -Wno-format-security "$@"

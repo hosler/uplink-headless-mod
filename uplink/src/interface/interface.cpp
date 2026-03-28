@@ -78,6 +78,18 @@ TaskManager *Interface::GetTaskManager ()
 
 }
 
+void Interface::SwapRemoteInterface ( RemoteInterface *newri, RemoteInterface **oldri )
+{
+	if ( oldri ) *oldri = ri;
+	ri = newri;
+}
+
+void Interface::SwapTaskManager ( TaskManager *newtm, TaskManager **oldtm )
+{
+	if ( oldtm ) *oldtm = tm;
+	tm = newtm;
+}
+
 bool Interface::Load ( FILE *file )
 {
 

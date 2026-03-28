@@ -71,6 +71,11 @@ Image *WorldGenerator::worldmapmask = NULL;
 
 void WorldGenerator::Initialise()
 {
+	extern bool g_headless;
+	if ( g_headless ) {
+		worldmapmask = NULL;
+		return;
+	}
 
 	worldmapmask = new Image ();
 	char *filename;
@@ -105,12 +110,18 @@ void WorldGenerator::GenerateAll ()
 void WorldGenerator::GenerateValidMapPos ( int &x, int &y )
 {
 
-	UplinkAssert (worldmapmask);
+	extern bool g_headless;
+	if ( !worldmapmask ) {
+		// Headless mode: assign random position without mask validation
+		x = rand () % 590 + 2;
+		y = rand () % 310 + 2;
+		return;
+	}
 
-	/********** Start code by François Gagné **********/
+	/********** Start code by Franï¿½ois Gagnï¿½ **********/
 	int retryDiffLoc = 0;
 	DArray <VLocation *> *vls = game->GetWorld ()->locations.ConvertToDArray (); 
-	/********** End code by François Gagné **********/
+	/********** End code by Franï¿½ois Gagnï¿½ **********/
 
 	while ( 1 ) {
 
@@ -122,7 +133,7 @@ void WorldGenerator::GenerateValidMapPos ( int &x, int &y )
 
 		if ( worldmapmask->GetPixelR ( tX, tY ) != 0 ) {
 
-			/********** Start code by François Gagné **********/
+			/********** Start code by Franï¿½ois Gagnï¿½ **********/
 			int found = 0;
 			for ( int i = vls->Size () - 1; i >= 0; i-- ) {
 				if ( vls->ValidIndex ( i ) ) {
@@ -150,7 +161,7 @@ void WorldGenerator::GenerateValidMapPos ( int &x, int &y )
 	}
  
 	delete vls;
-	/********** End code by François Gagné **********/
+	/********** End code by Franï¿½ois Gagnï¿½ **********/
 }
 
 void WorldGenerator::GenerateRandomWorld ()
