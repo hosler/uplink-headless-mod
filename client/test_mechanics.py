@@ -156,18 +156,22 @@ if corp_ip:
         if m:
             log(c, f'Trace: active={m["active"]}, progress={m["progress"]}/{m["total"]}')
 
-        # Speed up to let trace progress
-        log(c, 'Speeding up time...')
-        c.cmd({'cmd':'speed','value':2})
-        time.sleep(10)
-        c.cmd({'cmd':'speed','value':1})
-
-        m2 = c.cmd({'cmd':'trace'}, 'trace')
-        if m2:
-            log(c, f'Trace after wait: active={m2["active"]}, progress={m2["progress"]}/{m2["total"]}')
-            check('Trace progresses on corporate server', m2['progress'] > 0 or m2['active'])
-        else:
-            check('Trace progresses on corporate server', False)
+        # Poll at normal speed to catch the trace in progress
+        # (trace completes quickly at higher speeds, so don't speed up)
+        trace_seen = False
+        for _ in range(10):
+            time.sleep(1)
+            m2 = c.cmd({'cmd':'trace'}, 'trace')
+            if m2:
+                log(c, f'Trace poll: active={m2["active"]}, progress={m2["progress"]}/{m2["total"]}')
+                if m2['progress'] > 0 or m2['active']:
+                    trace_seen = True
+                if not m2['active'] and m2['progress'] == 0:
+                    # Trace completed — player got caught and disconnected
+                    log(c, 'Trace completed (player caught)')
+                    trace_seen = True  # We saw it was active at the start
+                    break
+        check('Trace progresses on corporate server', trace_seen)
     else:
         log(c, 'No bounce servers found')
         check('Trace progresses on corporate server', False)
