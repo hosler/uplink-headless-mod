@@ -2070,8 +2070,11 @@ class BrowserView:
             form_x = SCR_X + (SCR_W - form_w) // 2
             f_body = get_font(scale.fs(16), light=True)
             
-            btn_cy = cy + 20
+            # Use same bank-detection logic as _draw_dialog
             widgets = sd.get("widgets", [])
+            is_bank = any("bank" in w.get("caption", "").lower() for w in widgets) or "bank" in sd.get("subtitle", "").lower()
+            
+            btn_cy = cy + (42 if is_bank else 20)
             for w in widgets:
                 cap = w.get("caption", "")
                 wname = w.get("name", "")
@@ -2087,8 +2090,6 @@ class BrowserView:
                     btn_w = 220
                     rect = scale.rect(form_x + (form_w - btn_w) // 2, btn_cy, btn_w, 40)
                     if rect.collidepoint(event.pos):
-                        # For buttons, we might need to send all input values first?
-                        # Actually original Uplink does it on click.
                         for iname, inp in self._dialog_inputs.items():
                             self.net.set_field(iname, inp.text)
                         self.net.send({"cmd": "click", "button": wname}, refresh_state=True)
@@ -2113,16 +2114,16 @@ class BrowserView:
             # Submit button
             form_x = SCR_X + (SCR_W - 400) // 2
             form_w = 400
-            btn_w = 200
+            btn_w = 220
             btn_x = form_x + (form_w - btn_w) // 2
-            rect = scale.rect(btn_x, cy + 105, btn_w, 42)
+            rect = scale.rect(btn_x, cy + 105, btn_w, 44)
             if rect.collidepoint(event.pos):
                 self._submit_password(st)
                 return
             # "Run Password Breaker" button
-            crack_w = 320
+            crack_w = 340
             crack_x = form_x + (form_w - crack_w) // 2
-            crack_rect = scale.rect(crack_x, cy + 180, crack_w, 40)
+            crack_rect = scale.rect(crack_x, cy + 185, crack_w, 42)
             if crack_rect.collidepoint(event.pos):
                 import time
                 self._cracking = True
@@ -2144,13 +2145,20 @@ class BrowserView:
                 if cap and cap not in ("OK", " ", "") and len(cap) > len(msg_text):
                     msg_text = cap
             if msg_text:
-                lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
-                panel_h = len(lines) * 24 + 80
+                # Same subtitle-deduplication logic as _draw_message
+                subtitle = sd.get("subtitle", "MESSAGE").upper()
+                clean_msg = msg_text.strip().upper()
+                if subtitle in clean_msg and len(clean_msg) < len(subtitle) + 10:
+                    lines = []
+                else:
+                    lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
+                
+                panel_h = max(60, len(lines) * 24 + 100)
                 msg_cy += panel_h + 30
 
             # Only click if there's actually a messagescreen_click button
-            btn_w = 240
-            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, msg_cy, btn_w, 46)
+            btn_w = 260
+            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, msg_cy, btn_w, 48)
             if rect.collidepoint(event.pos):
                 for btn in state.buttons:
                     name = btn.get("name", "")
