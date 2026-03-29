@@ -1012,8 +1012,8 @@ class SoftwareView:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 725),
-                   ("Size", SCR_X + 875), ("Cost", SCR_X + 1025), ("", SCR_X + SCR_W - 120)]
+        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 680),
+                   ("Size", SCR_X + 830), ("Cost", SCR_X + 980), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         f_row = get_font(scale.fs(15), light=True)
@@ -1033,15 +1033,15 @@ class SoftwareView:
             surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             txt = f_row.render(f"v{sw.get('version', 1)}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 725), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 680), scale.y(y + 7)))
 
             txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 875), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 830), scale.y(y + 7)))
 
             cost = sw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 1025), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 980), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 

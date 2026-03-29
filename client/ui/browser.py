@@ -480,10 +480,11 @@ class BrowserView:
                     (rect.x + scale.w(26), rect.y + rect.h // 2)
                 ]
                 pygame.draw.polygon(surface, PRIMARY, pts)
-                # Outer glow for triangle
-                for j in range(3):
-                    pygame.draw.polygon(surface, (*PRIMARY, 50-j*15), 
-                                        [(p[0]-j, p[1]-j if i==0 else (p[1]+j if i==1 else p[1])) for i,p in enumerate(pts)], 1)
+                # Outer glow for triangle (symmetric)
+                for j in range(1, 4):
+                    pygame.draw.polygon(surface, (*PRIMARY, 60 - j * 15), 
+                                        [(p[0] - j, p[1] - j if i == 0 else (p[1] + j if i == 1 else p[1] + j//2)) 
+                                         for i, p in enumerate(pts)], 1)
             else:
                 # Thin pointer
                 pts = [
@@ -495,8 +496,8 @@ class BrowserView:
 
             txt = f_btn.render(opt["caption"], True, TEXT_WHITE if hovered else PRIMARY)
             surface.blit(txt, (rect.x + scale.w(42), rect.y + (rect.h - txt.get_height()) // 2))
+
     def _draw_highsecurity(self, surface, scale, state, cy):
-        """Render HighSecurityScreen as security challenge panels."""
         f_title = get_font(scale.fs(22))
         f_label = get_font(scale.fs(16), light=True)
         f_btn = get_font(scale.fs(18))
@@ -617,8 +618,8 @@ class BrowserView:
             pygame.draw.rect(surface, PRIMARY, (lock_x, lock_y - 2, scale.w(12), scale.h(10)), border_radius=1)
             pygame.draw.arc(surface, PRIMARY, (lock_x + 2, lock_y - 8, scale.w(8), scale.h(12)), 0, 3.14, 2)
             
-            f_sec = get_font(scale.fs(13))
-            txt = f_sec.render("SECURE BANKING INTERFACE [RSA 4096-BIT ENCRYPTION ACTIVE]", True, PRIMARY)
+            f_sec = get_font(scale.fs(12), light=True)
+            txt = f_sec.render("SECURE BANKING INTERFACE - ENCRYPTION: [RSA 4096-BIT / ACTIVE]", True, PRIMARY)
             surface.blit(txt, (lock_x + 25, strip_r.centery - txt.get_height() // 2))
             cy += 42
         else:
@@ -1181,12 +1182,12 @@ class BrowserView:
         f_output = get_font(scale.fs(15), light=True)
 
         # Console prompt prefix
-        prompt_prefix = "usr@uplink:~# "
+        prompt_prefix = "root@uplink:/# "
         for b in state.buttons:
             if b.get("name", "") == "console_typehere":
                 cap = b.get("caption", "").strip()
                 if cap and cap.endswith(">"):
-                    prompt_prefix = cap + " "
+                    prompt_prefix = "REMOTE_ACCESS@SYSTEM:~# "
 
         # Terminal header bar
         header_rect = scale.rect(SCR_X + 10, cy - 2, SCR_W - 20, 24)
@@ -1541,7 +1542,7 @@ class BrowserView:
         pygame.draw.rect(surface, SECONDARY, head_rect, 1, border_radius=2)
 
         # Column headers
-        headers = [("FILENAME", 25), ("SIZE", 480), ("SECURITY", 590), ("COMPRESSION", 750)]
+        headers = [("FILENAME", 25), ("SIZE", 420), ("ENCRYPTION", 560), ("COMPRESSION", 720)]
         for h, hx in headers:
             txt = f_header.render(h, True, PRIMARY)
             surface.blit(txt, (scale.x(SCR_X + hx), head_rect.y + (head_rect.h - txt.get_height()) // 2))
@@ -1570,28 +1571,28 @@ class BrowserView:
             color = TEXT_WHITE if hovered else TEXT_DIM
             
             # Filename
-            txt = f_row.render(f["title"][:45].upper(), True, color)
+            txt = f_row.render(f["title"][:40].upper(), True, color)
             surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
             
             # Size
             txt = f_row.render(f"{f['size']} GQ", True, TEXT_WHITE if hovered else TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 480), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            surface.blit(txt, (scale.x(SCR_X + 420), row_rect.y + (row_rect.h - txt.get_height()) // 2))
             
             # Encrypted
             if f.get("encrypted"):
-                txt = f_row.render("LV " + str(f["encrypted"]), True, ALERT)
-                surface.blit(txt, (scale.x(SCR_X + 590), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+                txt = f_row.render("LEVEL " + str(f["encrypted"]), True, ALERT)
+                surface.blit(txt, (scale.x(SCR_X + 560), row_rect.y + (row_rect.h - txt.get_height()) // 2))
             else:
                 txt = f_row.render("NONE", True, (60, 80, 100))
-                surface.blit(txt, (scale.x(SCR_X + 590), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+                surface.blit(txt, (scale.x(SCR_X + 560), row_rect.y + (row_rect.h - txt.get_height()) // 2))
                 
             # Compressed
             if f.get("compressed"):
-                txt = f_row.render("LV " + str(f["compressed"]), True, SUCCESS)
-                surface.blit(txt, (scale.x(SCR_X + 750), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+                txt = f_row.render("LEVEL " + str(f["compressed"]), True, SUCCESS)
+                surface.blit(txt, (scale.x(SCR_X + 720), row_rect.y + (row_rect.h - txt.get_height()) // 2))
             else:
                 txt = f_row.render("NONE", True, (60, 80, 100))
-                surface.blit(txt, (scale.x(SCR_X + 750), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+                surface.blit(txt, (scale.x(SCR_X + 720), row_rect.y + (row_rect.h - txt.get_height()) // 2))
 
         # Scroll indicator
         if len(files) > max_vis:

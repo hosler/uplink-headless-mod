@@ -48,6 +48,12 @@ class LoginScreen:
         for i in range(12):
             y = scale.y(180 + i * 80)
             pygame.draw.line(surface, (15, 25, 35), (0, y), (scale.win_w, y), 1)
+        
+        # Additional techy side-bars
+        pygame.draw.rect(surface, (20, 30, 45), (0, 0, scale.w(15), scale.win_h))
+        pygame.draw.rect(surface, (20, 30, 45), (scale.win_w - scale.w(15), 0, scale.w(15), scale.win_h))
+        pygame.draw.line(surface, SECONDARY, (scale.w(15), 0), (scale.w(15), scale.win_h), 1)
+        pygame.draw.line(surface, SECONDARY, (scale.win_w - scale.w(15), 0), (scale.win_w - scale.w(15), scale.win_h), 1)
 
         # Panel
         self.panel.draw(surface, scale)
