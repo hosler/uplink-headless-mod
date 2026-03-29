@@ -1,6 +1,6 @@
 """Content tab views: Email, Gateway, Missions, BBS, Software, Hardware."""
 import pygame
-from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, ALERT, SUCCESS,
+from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, ALERT, SUCCESS, WARNING,
                       TEXT_WHITE, TEXT_DIM, PANEL_BG, PANEL_BORDER, ROW_ALT,
                       ROW_HOVER, ROW_SELECTED, TOPBAR_H, TAB_H, STATUSBAR_H,
                       DESIGN_W, DESIGN_H)
@@ -538,7 +538,7 @@ class GatewayView:
         
         if mem_total > 0:
             fill_pct = min(1.0, mem_used / mem_total)
-            fill_color = ALERT if fill_pct > 0.9 else (SUCCESS if fill_pct < 0.7 else (255, 200, 50))
+            fill_color = ALERT if fill_pct > 0.9 else (SUCCESS if fill_pct < 0.7 else WARNING)
             fill_w = int(bar_rect.w * fill_pct)
             if fill_w > 0:
                 # Main fill
@@ -594,7 +594,7 @@ class GatewayView:
                 hovered = row_rect.collidepoint(mouse)
                 _draw_data_row(surface, scale, y, hovered, alt=i % 2 == 1)
 
-                color = TEXT_WHITE if hovered else (140, 170, 200)
+                color = TEXT_WHITE if hovered else TEXT_DIM
                 txt = f_row.render(f.get("title", "")[:50], True, color)
                 surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
                 txt = f_row.render(f"{f.get('size', 0)} GQ", True, TEXT_DIM)
@@ -718,7 +718,7 @@ class MissionsView:
             surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             diff = m.get("difficulty", 0)
-            diff_color = SUCCESS if diff <= 3 else ((255, 200, 50) if diff <= 6 else ALERT)
+            diff_color = SUCCESS if diff <= 3 else (WARNING if diff <= 6 else ALERT)
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
             surface.blit(txt, (scale.x(SCR_X + 135), scale.y(y + 7)))
 
@@ -935,7 +935,7 @@ class BBSView:
 
             # Difficulty stars
             diff = m.get("difficulty", 0)
-            diff_color = SUCCESS if diff <= 3 else ((255, 200, 50) if diff <= 6 else ALERT)
+            diff_color = SUCCESS if diff <= 3 else (WARNING if diff <= 6 else ALERT)
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
             surface.blit(txt, (scale.x(SCR_X + 175), scale.y(y + 7)))
 

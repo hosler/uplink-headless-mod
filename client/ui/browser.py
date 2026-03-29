@@ -2,7 +2,7 @@
 import time
 import math
 import pygame
-from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, ALERT, SUCCESS,
+from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, ALERT, SUCCESS, WARNING,
                       TEXT_WHITE, TEXT_DIM, PANEL_BG, TOPBAR_H, TAB_H,
                       STATUSBAR_H, DESIGN_W, DESIGN_H, ROW_ALT, ROW_HOVER,
                       PANEL_BORDER)
@@ -255,36 +255,43 @@ class BrowserView:
         cy = DESIGN_H // 2 - 100
         
         # Center panel for connection
-        pw, ph = 600, 300
-        HackerPanel(cx - pw//2, cy, pw, ph, title="Establishing Link").draw(surface, scale)
+        pw, ph = 600, 320
+        HackerPanel(cx - pw//2, cy - 10, pw, ph, title="Establishing Link").draw(surface, scale)
 
-        txt = f_label.render("Connecting to...", True, TEXT_DIM)
+        # Pulse effect for "Connecting to..."
+        pulse = (math.sin(time.time() * 6) + 1) / 2
+        txt = f_label.render("Connecting to...", True, (200 + 55 * pulse, 200 + 55 * pulse, 200 + 55 * pulse))
         surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 40)))
 
         txt = f_ip.render(self._connect_ip, True, PRIMARY)
         surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 85)))
 
+        if self._connect_name:
+            txt = f_name.render(self._connect_name.upper(), True, TEXT_DIM)
+            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 130)))
+
         # Progress bar (segmented)
-        bar_w = 400
+        bar_w = 420
         bar_h = 24
         bx = cx - bar_w // 2
-        by = cy + 160
+        by = cy + 170
         from ui.widgets import ProgressBar
         pb = ProgressBar(bx, by, bar_w, bar_h, segments=True)
         pb.value = progress
         pb.draw(surface, scale)
 
-        # Tech noise
-        noise_y = cy + 220
+        # Tech noise and deco lines
+        noise_y = cy + 230
         import random
-        for i in range(3):
-            line = "".join(random.choices("0123456789ABCDEF", k=24))
-            txt = f_tech.render(f"AUTH_STREAM_{i}: {line}", True, (30, 60, 90))
+        for i in range(4):
+            line = "".join(random.choices("0123456789ABCDEF", k=32))
+            txt = f_tech.render(f"AUTH_STREAM_{i}: {line}", True, (35, 75, 110))
             surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(noise_y + i * 16)))
-
-        if self._connect_name:
-            txt = f_name.render(self._connect_name.upper(), True, TEXT_DIM)
-            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 130)))
+        
+        # Subtle "LINKING..." text at bottom of panel
+        if progress < 1.0:
+            txt = f_tech.render("ESTABLISHING ENCRYPTED HANDSHAKE...", True, (50, 100, 150))
+            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + ph - 30)))
 
     # ================================================================
     # SCREEN RENDERING (connected)
@@ -473,8 +480,8 @@ class BrowserView:
         CHALLENGE_ICONS = {
             "password": ("PASS", ALERT),
             "voice": ("VOICE", (43, 255, 209)),
-            "cypher": ("CRYPT", (255, 200, 50)),
-            "elliptic": ("CRYPT", (255, 200, 50)),
+            "cypher": ("CRYPT", WARNING),
+            "elliptic": ("CRYPT", WARNING),
         }
 
         for i, opt in enumerate(options):
@@ -556,10 +563,23 @@ class BrowserView:
         
         # Draw decorative form background
         bg_h = 450 # estimate
-        pygame.draw.rect(surface, (15, 25, 40, 150), scale.rect(form_x - 20, cy, form_w + 40, bg_h), border_radius=4)
-        pygame.draw.rect(surface, SECONDARY, scale.rect(form_x - 20, cy, form_w + 40, bg_h), 1, border_radius=4)
-
-        cy += 20
+        bg_color = (20, 30, 45, 180) if is_bank else (15, 25, 40, 150)
+        border_color = PRIMARY if is_bank else SECONDARY
+        
+        pygame.draw.rect(surface, bg_color, scale.rect(form_x - 20, cy, form_w + 40, bg_h), border_radius=4)
+        pygame.draw.rect(surface, border_color, scale.rect(form_x - 20, cy, form_w + 40, bg_h), 1, border_radius=4)
+        
+        if is_bank:
+            # Add a "Bank Secure" header strip
+            strip_r = scale.rect(form_x - 20, cy, form_w + 40, 32)
+            pygame.draw.rect(surface, (10, 40, 80), strip_r, border_top_left_radius=4, border_top_right_radius=4)
+            pygame.draw.rect(surface, PRIMARY, strip_r, 1, border_top_left_radius=4, border_top_right_radius=4)
+            f_sec = get_font(scale.fs(14))
+            txt = f_sec.render("SECURE BANKING INTERFACE", True, PRIMARY)
+            surface.blit(txt, (strip_r.centerx - txt.get_width() // 2, strip_r.centery - txt.get_height() // 2))
+            cy += 42
+        else:
+            cy += 20
         for w in widgets:
             cap = w.get("caption", "")
             wname = w.get("name", "")
@@ -682,7 +702,8 @@ class BrowserView:
                 anim_y += 10
                 displayed = ""
                 for j, ch in enumerate(self._crack_user):
-                    char_progress = min(1.0, progress * len(self._crack_user) / max(j + 1, 1))
+                    # Improved progress logic: characters finish sequentially
+                    char_progress = min(1.0, max(0.0, progress * (len(self._crack_user) + 2) - j))
                     if char_progress >= 1.0:
                         displayed += ch
                     else:
@@ -698,7 +719,7 @@ class BrowserView:
                 pw_start = 0.3 if st == "UserIDScreen" else 0.0
                 pw_progress = max(0, (progress - pw_start) / (1.0 - pw_start))
                 for j, ch in enumerate(self._crack_pass):
-                    char_progress = min(1.0, pw_progress * len(self._crack_pass) / max(j + 1, 1))
+                    char_progress = min(1.0, max(0.0, pw_progress * (len(self._crack_pass) + 2) - j))
                     if char_progress >= 1.0:
                         displayed += ch
                     else:
@@ -1093,16 +1114,25 @@ class BrowserView:
                 if cap:
                     prompt_prefix = cap
 
-        # Terminal header
+        # Terminal header bar
+        header_rect = scale.rect(SCR_X + 10, cy - 2, SCR_W - 20, 24)
+        pygame.draw.rect(surface, (10, 20, 30), header_rect, border_top_left_radius=4, border_top_right_radius=4)
+        pygame.draw.rect(surface, (*SECONDARY, 100), header_rect, 1, border_top_left_radius=4, border_top_right_radius=4)
+        
         txt = f_header.render("TERMINAL INTERFACE v4.0.1", True, SECONDARY)
-        surface.blit(txt, (scale.x(SCR_X + 15), scale.y(cy - 4)))
-        cy += 20
+        surface.blit(txt, (header_rect.x + 10, header_rect.y + 4))
+        
+        # Small decorative dots/buttons in corner
+        for i in range(3):
+            pygame.draw.circle(surface, (*SECONDARY, 150), (header_rect.right - 15 - i * 14, header_rect.centery), 3)
+
+        cy += 22
 
         # Render terminal-style background with scanlines
         term_h = 520
         term_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, term_h)
-        pygame.draw.rect(surface, (2, 5, 8), term_rect, border_radius=4)
-        pygame.draw.rect(surface, (*SECONDARY, 150), term_rect, 1, border_radius=4)
+        pygame.draw.rect(surface, (2, 5, 8), term_rect, border_bottom_left_radius=4, border_bottom_right_radius=4)
+        pygame.draw.rect(surface, (*SECONDARY, 150), term_rect, 1, border_bottom_left_radius=4, border_bottom_right_radius=4)
         
         # Subtle terminal glow
         glow = pygame.Surface((term_rect.w, term_rect.h), pygame.SRCALPHA)
@@ -1220,7 +1250,7 @@ class BrowserView:
             "Router": (43, 170, 255),        # cyan
             "Hub": (30, 98, 168),             # blue
             "Terminal": (140, 170, 200),      # light gray
-            "MainServer": (255, 200, 50),     # gold
+            "MainServer": WARNING,     # gold
             "MailServer": (43, 255, 209),     # teal
             "FileServer": (43, 255, 209),     # teal
             "Authentication": (211, 26, 26),  # red
@@ -1371,43 +1401,49 @@ class BrowserView:
             
             rect = scale.rect(rx, ry, card_w, card_h)
             
-            # Card background
+            # Card background with gradient-like fill
             bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
             bg.fill((15, 25, 40, 180))
+            # Subtle top light
+            pygame.draw.line(bg, (255, 255, 255, 30), (0, 0), (rect.w, 0))
             surface.blit(bg, rect.topleft)
-            pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1, border_radius=2)
+            pygame.draw.rect(surface, (*SECONDARY, 80), rect, 1, border_radius=2)
             
-            # Left accent bar
+            # Left accent bar with small notch
             accent_col = PRIMARY if role in ("ceo", "md") else SECONDARY
             pygame.draw.rect(surface, accent_col, (rect.x, rect.y, scale.w(4), rect.h))
             
-            # Avatar placeholder
-            avatar_r = scale.rect(rx + 15, ry + 15, 50, 50)
-            pygame.draw.rect(surface, (30, 45, 60), avatar_r, border_radius=4)
-            pygame.draw.rect(surface, (*SECONDARY, 80), avatar_r, 1, border_radius=4)
-            # Simple person icon
-            pygame.draw.circle(surface, SECONDARY, (avatar_r.centerx, avatar_r.y + scale.h(18)), scale.w(8))
-            pygame.draw.arc(surface, SECONDARY, (avatar_r.x + scale.w(10), avatar_r.y + scale.h(22), scale.w(30), scale.h(30)), 0, 3.14, 2)
+            # Avatar placeholder - more refined icon
+            avatar_r = scale.rect(rx + 15, ry + 15, 52, 52)
+            pygame.draw.rect(surface, (25, 35, 50), avatar_r, border_radius=4)
+            pygame.draw.rect(surface, (*SECONDARY, 60), avatar_r, 1, border_radius=4)
+            
+            # Person icon
+            head_r = scale.w(8)
+            pygame.draw.circle(surface, SECONDARY, (avatar_r.centerx, avatar_r.y + scale.h(18)), head_r)
+            shoulder_rect = (avatar_r.x + scale.w(10), avatar_r.y + scale.h(28), scale.w(32), scale.h(20))
+            pygame.draw.arc(surface, SECONDARY, shoulder_rect, 0, 3.14, 2)
 
             # Info text
-            tx = rx + 80
+            tx = rx + 82
             title = info.get("title", role.upper()).upper()
             txt = f_label.render(title, True, accent_col)
             surface.blit(txt, (scale.x(tx), scale.y(ry + 15)))
             
             name = info.get("name", "REDACTED")
             txt = f_title.render(name, True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(tx), scale.y(ry + 32)))
+            surface.blit(txt, (scale.x(tx), scale.y(ry + 34)))
             
             email = info.get("email", "")
             if email:
-                txt = f_body.render(email, True, TEXT_DIM)
-                surface.blit(txt, (scale.x(tx), scale.y(ry + 58)))
+                txt = f_body.render(email, True, (160, 190, 220))
+                surface.blit(txt, (scale.x(tx), scale.y(ry + 60)))
             
             tel = info.get("tel", "")
             if tel:
-                txt = f_body.render(tel, True, TEXT_DIM)
-                surface.blit(txt, (scale.x(tx + 180), scale.y(ry + 58)))
+                # Phone icon or just label
+                txt = f_body.render(f"TEL: {tel}", True, TEXT_DIM)
+                surface.blit(txt, (scale.x(rx + card_w - txt.get_width() / scale.factor - 15), scale.y(ry + 15)))
 
     def _draw_file_server(self, surface, scale, state, cy, files, mouse):
         f_header = get_font(scale.fs(16))
@@ -1450,7 +1486,7 @@ class BrowserView:
                 alt.fill((*ROW_ALT, 100))
                 surface.blit(alt, row_rect.topleft)
 
-            color = TEXT_WHITE if hovered else (160, 190, 220)
+            color = TEXT_WHITE if hovered else TEXT_DIM
             
             # Filename
             txt = f_row.render(f["title"][:45].upper(), True, color)
@@ -1524,12 +1560,12 @@ class BrowserView:
                 surface.blit(alt, row_rect.topleft)
 
             # Default color
-            color = TEXT_WHITE if hovered else (140, 170, 200)
+            color = TEXT_WHITE if hovered else TEXT_DIM
             
             # Suspicious logs in yellow/red
             sus = log.get("suspicious", 0)
             if sus > 0:
-                color = ALERT if sus >= 2 else (255, 200, 50)
+                color = ALERT if sus >= 2 else WARNING
 
             # Date
             txt = f_row.render(log.get("date", "")[:18], True, color)

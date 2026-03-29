@@ -470,6 +470,7 @@ def main():
         _t.PRIMARY = (0, 90, 190)
         _t.SECONDARY = (70, 80, 100)
         _t.SUCCESS = (0, 140, 70)
+        _t.WARNING = (160, 110, 0)
         _t.ALERT = (200, 20, 20)
         _t.TEXT_WHITE = (15, 15, 20)
         _t.TEXT_DIM = (80, 90, 110)

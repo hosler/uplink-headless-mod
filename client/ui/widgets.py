@@ -116,10 +116,10 @@ class Button:
                 # Expanding corner accents
                 t = (time.time() - self._hover_start) * 4
                 offset = min(scale.w(4), int(scale.w(4) * t))
-                pygame.draw.line(surface, WHITE, (rect.x - offset, rect.y - offset), (rect.x + cw - offset, rect.y - offset), 2)
-                pygame.draw.line(surface, WHITE, (rect.x - offset, rect.y - offset), (rect.x - offset, rect.y + ch - offset), 2)
-                pygame.draw.line(surface, WHITE, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right - cw + offset - 1, rect.bottom + offset - 1), 2)
-                pygame.draw.line(surface, WHITE, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right + offset - 1, rect.bottom - ch + offset - 1), 2)
+                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x + cw - offset, rect.y - offset), 2)
+                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x - offset, rect.y + ch - offset), 2)
+                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right - cw + offset - 1, rect.bottom + offset - 1), 2)
+                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right + offset - 1, rect.bottom - ch + offset - 1), 2)
             else:
                 # Static corners
                 pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), 2)
