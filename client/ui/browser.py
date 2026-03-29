@@ -147,10 +147,12 @@ class BrowserView:
 
         # Separator (decorative)
         sy = scale.y(CONTENT_Y + 85)
+        sw = max(1, scale.h(1))
+        sh = max(1, scale.h(4))
         pygame.draw.line(surface, (*SECONDARY, 150), (scale.x(SCR_X), sy),
-                         (scale.x(SCR_X + SCR_W), sy), 1)
-        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X), sy-4), (scale.x(SCR_X), sy+4), 2)
-        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X + SCR_W), sy-4), (scale.x(SCR_X + SCR_W), sy+4), 2)
+                         (scale.x(SCR_X + SCR_W), sy), sw)
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X), sy - sh), (scale.x(SCR_X), sy + sh), max(1, scale.w(2)))
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X + SCR_W), sy - sh), (scale.x(SCR_X + SCR_W), sy + sh), max(1, scale.w(2)))
 
         # Link rows
         links = state.links
@@ -260,7 +262,11 @@ class BrowserView:
 
         # Pulse effect for "Connecting to..."
         pulse = (math.sin(time.time() * 6) + 1) / 2
-        txt = f_label.render("Connecting to...", True, (200 + 55 * pulse, 200 + 55 * pulse, 200 + 55 * pulse))
+        # Pulse between TEXT_DIM and PRIMARY
+        r = int(TEXT_DIM[0] + (PRIMARY[0] - TEXT_DIM[0]) * pulse)
+        g = int(TEXT_DIM[1] + (PRIMARY[1] - TEXT_DIM[1]) * pulse)
+        b = int(TEXT_DIM[2] + (PRIMARY[2] - TEXT_DIM[2]) * pulse)
+        txt = f_label.render("Connecting to...", True, (r, g, b))
         surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 40)))
 
         txt = f_ip.render(self._connect_ip, True, PRIMARY)
@@ -482,9 +488,13 @@ class BrowserView:
                 pygame.draw.polygon(surface, PRIMARY, pts)
                 # Outer glow for triangle (symmetric)
                 for j in range(1, 4):
-                    pygame.draw.polygon(surface, (*PRIMARY, 60 - j * 15), 
-                                        [(p[0] - j, p[1] - j if i == 0 else (p[1] + j if i == 1 else p[1] + j//2)) 
-                                         for i, p in enumerate(pts)], 1)
+                    # Expand triangle points outward: top-left (p0), bottom-left (p1), tip (p2)
+                    glow_pts = [
+                        (pts[0][0] - j, pts[0][1] - j),
+                        (pts[1][0] - j, pts[1][1] + j),
+                        (pts[2][0] + j, pts[2][1])
+                    ]
+                    pygame.draw.polygon(surface, (*PRIMARY, 60 - j * 15), glow_pts, 1)
             else:
                 # Thin pointer
                 pts = [
@@ -612,15 +622,17 @@ class BrowserView:
             pygame.draw.rect(surface, (10, 40, 80), strip_r, border_top_left_radius=4, border_top_right_radius=4)
             pygame.draw.rect(surface, PRIMARY, strip_r, 1, border_top_left_radius=4, border_top_right_radius=4)
             
-            # Padlock icon
-            lock_x = strip_r.x + 15
-            lock_y = strip_r.centery
-            pygame.draw.rect(surface, PRIMARY, (lock_x, lock_y - 2, scale.w(12), scale.h(10)), border_radius=1)
-            pygame.draw.arc(surface, PRIMARY, (lock_x + 2, lock_y - 8, scale.w(8), scale.h(12)), 0, 3.14, 2)
+            # Padlock icon (scaled and refined)
+            lx, ly = strip_r.x + scale.w(15), strip_r.centery
+            pw, ph = scale.w(12), scale.h(10)
+            pygame.draw.rect(surface, PRIMARY, (lx, ly - scale.h(2), pw, ph), border_radius=1)
+            # Shackle: centered above body
+            shackle_rect = pygame.Rect(lx + scale.w(2), ly - scale.h(8), scale.w(8), scale.h(12))
+            pygame.draw.arc(surface, PRIMARY, shackle_rect, 0, 3.14, max(1, scale.w(2)))
             
             f_sec = get_font(scale.fs(12), light=True)
             txt = f_sec.render("SECURE BANKING INTERFACE - ENCRYPTION: [RSA 4096-BIT / ACTIVE]", True, PRIMARY)
-            surface.blit(txt, (lock_x + 25, strip_r.centery - txt.get_height() // 2))
+            surface.blit(txt, (lx + scale.w(25), strip_r.centery - txt.get_height() // 2))
             cy += 42
         else:
             cy += 20
@@ -946,10 +958,11 @@ class BrowserView:
             if subtitle in clean_msg and len(clean_msg) < len(subtitle) + 10:
                 # Same message, hide the body to avoid double-rendering identical text
                 lines = []
+                panel_h = 100 # Minimum height for header-only panel
             else:
                 lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
+                panel_h = max(120, len(lines) * 24 + 100)
             
-            panel_h = max(60, len(lines) * 24 + 100)
             panel_rect = scale.rect(SCR_X + 20, cy, SCR_W - 40, panel_h)
             
             # Background with subtle gradient/glow

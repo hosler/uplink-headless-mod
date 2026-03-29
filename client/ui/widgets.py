@@ -68,7 +68,7 @@ class HackerPanel:
             th = scale.h(24)
             tr = pygame.Rect(rect.x, rect.y - th, tw, th)
             # Angled title tab
-            points = [(tr.x, tr.bottom), (tr.x, tr.y), (tr.right - 10, tr.y), (tr.right, tr.bottom)]
+            points = [(tr.x, tr.bottom), (tr.x, tr.y), (tr.right - scale.w(10), tr.y), (tr.right, tr.bottom)]
             pygame.draw.polygon(surface, PANEL_BG, points)
             pygame.draw.lines(surface, self.color, False, points, 1)
             surface.blit(txt, (tr.x + 10, tr.y + (th - txt.get_height()) // 2))
@@ -104,6 +104,7 @@ class Button:
             # Complex border with corner tabs
             pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1)
             cw, ch = scale.w(10), scale.h(10)
+            line_w = max(1, scale.w(2))
             
             # Hover effect
             if self.hovered:
@@ -116,16 +117,16 @@ class Button:
                 # Expanding corner accents
                 t = (time.time() - self._hover_start) * 4
                 offset = min(scale.w(4), int(scale.w(4) * t))
-                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x + cw - offset, rect.y - offset), 2)
-                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x - offset, rect.y + ch - offset), 2)
-                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right - cw + offset - 1, rect.bottom + offset - 1), 2)
-                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right + offset - 1, rect.bottom - ch + offset - 1), 2)
+                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x + cw - offset, rect.y - offset), line_w)
+                pygame.draw.line(surface, self.color, (rect.x - offset, rect.y - offset), (rect.x - offset, rect.y + ch - offset), line_w)
+                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right - cw + offset - 1, rect.bottom + offset - 1), line_w)
+                pygame.draw.line(surface, self.color, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right + offset - 1, rect.bottom - ch + offset - 1), line_w)
             else:
                 # Static corners
-                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), 2)
-                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x, rect.y + ch), 2)
-                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), 2)
-                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), 2)
+                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), line_w)
+                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x, rect.y + ch), line_w)
+                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), line_w)
+                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), line_w)
 
             font = get_font(scale.fs(self.size))
             txt_color = color if self.hovered else TEXT_WHITE
