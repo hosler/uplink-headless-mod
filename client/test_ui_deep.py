@@ -113,8 +113,10 @@ def test(name, func):
 # ================================================================
 
 def login():
-    click(506, 306); wait(0.2); type_t("DeepTest"); key("Tab"); type_t("test")
-    click(640, 410); wait(4)
+    # Handle input is auto-focused, just type + Tab + password + Enter
+    wait(1)  # Wait for login screen to render
+    type_t("DeepTest"); key("Tab"); wait(0.2); type_t("test")
+    key("Return"); wait(4)
     assert state().get("player_handle") == "DeepTest", "Login failed"
 
 
@@ -123,43 +125,41 @@ def login():
 # ================================================================
 
 def connect_bookmark(idx):
-    """Click bookmark at index. Bookmarks start at y=137, ~40px apart."""
-    y = 137 + idx * 40
-    click(420, y)
+    """Connect to bookmark by index using keyboard shortcut (1-9)."""
+    key(str(idx + 1))
     wait(2.5)
 
 
 def disconnect():
-    click(900, 63)
+    """Disconnect using Escape key."""
+    key("Escape")
     wait(1)
 
 
 def click_back():
-    click(306, 63)
+    """Go back using Backspace key."""
+    key("BackSpace")
     wait(1)
 
 
 def click_continue():
-    """Click Continue on MessageScreen."""
-    click(592, 170)
+    """Click Continue on MessageScreen using Enter key."""
+    key("Return")
     wait(1)
 
 
 def click_menu_option(idx):
-    """Click menu option by index. Options start at y=133, 50px apart (at design cy)."""
-    y = 133 + idx * 33  # scaled from design 50px spacing
-    click(400, y)
+    """Select menu option by index using keyboard shortcut (1-9)."""
+    key(str(idx + 1))
     wait(1)
 
 
 def submit_password(user="admin", pw="rosebud"):
-    """Type password and click Submit on UserIDScreen.
-    Username 'admin' is pre-filled by the browser."""
-    # Password field centered at design x=760, screen ~507
-    # Submit button centered at design x=960, screen ~640
-    click(590, 167); wait(0.3)  # Click password field to focus
+    """Type password and press Enter to submit on UserIDScreen.
+    Password field is auto-focused when screen renders."""
+    wait(0.5)  # Let TextInput widgets initialize
     type_t(pw)
-    click(640, 204)  # Submit button (centered)
+    key("Return")
     wait(1.5)
 
 
@@ -169,7 +169,7 @@ def submit_password(user="admin", pw="rosebud"):
 
 def t_testmachine_flow():
     if is_connected(): disconnect()
-    click(13, 38); wait(0.5)  # Browser tab
+    key("F1"); wait(0.5)  # Browser tab
     connect_bookmark(0)  # Test Machine
     assert is_connected(), "Not connected"
 
@@ -228,7 +228,7 @@ def t_testmachine_flow():
 
 def t_internic_flow():
     if is_connected(): disconnect()
-    click(13, 38); wait(0.5)  # Browser tab
+    key("F1"); wait(0.5)  # Browser tab
     connect_bookmark(2)  # InterNIC (3rd bookmark)
     assert is_connected(), "Not connected to InterNIC"
 
@@ -277,7 +277,7 @@ def t_internic_flow():
 
 def t_bank_flow():
     if is_connected(): disconnect()
-    click(13, 38); wait(0.5)  # Browser tab
+    key("F1"); wait(0.5)  # Browser tab
     connect_bookmark(3)  # Bank (4th bookmark)
     assert is_connected(), "Not connected to bank"
 
@@ -314,7 +314,7 @@ def t_bank_flow():
 
 def t_publicaccess_flow():
     if is_connected(): disconnect()
-    click(13, 38); wait(0.5)  # Browser tab
+    key("F1"); wait(0.5)  # Browser tab
     connect_bookmark(1)  # Public Access (2nd bookmark)
     assert is_connected(), "Not connected"
     shot("pub_01")
@@ -351,7 +351,7 @@ def t_tabs_disconnected():
         shot(f"tab_{name.lower()}")
 
     # Return to browser
-    click(13, 38)
+    key("F1")
     wait(0.5)
 
 
@@ -362,7 +362,7 @@ def t_tabs_disconnected():
 def t_internic_discovery():
     """Connect to InterNIC, browse the server list, connect to different types."""
     if is_connected(): disconnect()
-    click(13, 38); wait(0.5)  # Browser tab
+    key("F1"); wait(0.5)  # Browser tab
 
     # Connect to InterNIC
     connect_bookmark(2)

@@ -4,7 +4,8 @@ import math
 import pygame
 from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, ALERT, SUCCESS,
                       TEXT_WHITE, TEXT_DIM, PANEL_BG, TOPBAR_H, TAB_H,
-                      STATUSBAR_H, DESIGN_W, DESIGN_H)
+                      STATUSBAR_H, DESIGN_W, DESIGN_H, ROW_ALT, ROW_HOVER,
+                      PANEL_BORDER)
 from ui.widgets import TextInput, Label
 import audio
 
@@ -210,6 +211,15 @@ class BrowserView:
         surface.blit(txt, (scale.x(SCR_X + 10), scale.y(960)))
 
     def _handle_bookmarks_event(self, event, scale, state):
+        # Keyboard: 1-9 to connect to bookmark by index
+        if event.type == pygame.KEYDOWN:
+            links = state.links
+            if pygame.K_1 <= event.key <= pygame.K_9:
+                idx = event.key - pygame.K_1
+                if idx < len(links):
+                    self.connect_to(links[idx]["ip"], links[idx].get("name", ""))
+                return
+
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
 
@@ -1695,6 +1705,54 @@ class BrowserView:
                 self._user_input.focused = True
                 return
 
+        # Keyboard shortcuts for server screens
+        if event.type == pygame.KEYDOWN:
+            # Escape: disconnect
+            if event.key == pygame.K_ESCAPE:
+                self.net.server_disconnect()
+                self._mode = "bookmarks"
+                self._operation = None
+                self._cracking = False
+                self.net.get_links()
+                audio.play_sfx("short_whoosh6")
+                return
+            # Backspace: back
+            if event.key == pygame.K_BACKSPACE and st not in ("PasswordScreen", "UserIDScreen"):
+                self.net.back()
+                audio.play_sfx("short_whoosh6")
+                return
+            # Enter/Return: Continue (MessageScreen) or OK (DialogScreen)
+            if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                if st == "MessageScreen":
+                    for btn in state.buttons:
+                        if "messagescreen_click" in btn.get("name", ""):
+                            self.net.send({"cmd": "click", "button": btn["name"]}, refresh_state=True)
+                            audio.play_sfx("popup")
+                            return
+                elif st == "DialogScreen":
+                    self.net.dialog_ok()
+                    audio.play_sfx("popup")
+                    return
+            # 1-9: select menu option
+            if st in ("MenuScreen", "HighSecurityScreen"):
+                if pygame.K_1 <= event.key <= pygame.K_9:
+                    idx = event.key - pygame.K_1
+                    options = sd.get("options", [])
+                    if idx < len(options):
+                        self.net.menu_select(idx)
+                        audio.play_sfx("popup")
+                    return
+            # F5: Run Password Breaker
+            if event.key == pygame.K_F5 and st in ("PasswordScreen", "UserIDScreen"):
+                if not self._cracking:
+                    import time as _t
+                    self._cracking = True
+                    self._crack_start = _t.time()
+                    self._crack_user = ""
+                    self._crack_pass = ""
+                    self.net.crack_password()
+                return
+
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
 
@@ -1706,7 +1764,7 @@ class BrowserView:
             return
 
         # Disconnect button
-        disc_r = scale.rect(SCR_X + SCR_W - 120, CONTENT_Y, 120, 28)
+        disc_r = scale.rect(SCR_X + SCR_W - 120, CONTENT_Y, 120, 32)
         if disc_r.collidepoint(event.pos):
             self.net.server_disconnect()
             self._mode = "bookmarks"
@@ -1716,19 +1774,29 @@ class BrowserView:
             audio.play_sfx("short_whoosh6")
             return
 
-        # Calculate content Y after title
+        # Calculate content Y after title (must match _draw_screen logic)
         cy = CONTENT_Y
         mt = sd.get("maintitle", "")
         sub = sd.get("subtitle", "")
-        if mt: cy += 46
-        if sub: cy += 36
-        cy += 24  # separator + padding
+        remote_ip = state.player.get("remotehost", "")
+        server_name = ""
+        for lk in state.links:
+            if lk.get("ip") == remote_ip:
+                server_name = lk.get("name", "")
+                break
+        # Match _draw_screen title logic
+        if (mt and mt not in ("Uplink", "uplink")) or server_name or sub:
+            cy += 46  # display_title always shown
+        display_sub = sub if (mt and mt not in ("Uplink", "uplink")) or server_name else ""
+        if display_sub:
+            cy += 36
+        cy += 24  # separator (14) + post-separator (10)
 
         if st == "MenuScreen" or st == "HighSecurityScreen":
             options = sd.get("options", [])
             for i, opt in enumerate(options):
-                y = cy + i * 50
-                rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 44)
+                y = cy + i * 54
+                rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 48)
                 if rect.collidepoint(event.pos):
                     self.net.menu_select(i)
                     audio.play_sfx("popup")
@@ -1743,7 +1811,8 @@ class BrowserView:
                 if cap:
                     lines = self._word_wrap(cap, f_body, scale.w(SCR_W - 40))
                     ok_y += len(lines) * 24 + 8
-            rect = scale.rect(SCR_X + 300, ok_y + 10, 160, 40)
+            btn_w = 200
+            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, ok_y + 10, btn_w, 42)
             if rect.collidepoint(event.pos):
                 self.net.dialog_ok()
                 audio.play_sfx("popup")
@@ -1757,14 +1826,14 @@ class BrowserView:
             form_w = 400
             btn_w = 200
             btn_x = form_x + (form_w - btn_w) // 2
-            rect = scale.rect(btn_x, cy + 95, btn_w, 38)
+            rect = scale.rect(btn_x, cy + 105, btn_w, 42)
             if rect.collidepoint(event.pos):
                 self._submit_password(st)
                 return
             # "Run Password Breaker" button
-            crack_w = 280
+            crack_w = 320
             crack_x = form_x + (form_w - crack_w) // 2
-            crack_rect = scale.rect(crack_x, cy + 160, crack_w, 34)
+            crack_rect = scale.rect(crack_x, cy + 180, crack_w, 40)
             if crack_rect.collidepoint(event.pos):
                 import time
                 self._cracking = True

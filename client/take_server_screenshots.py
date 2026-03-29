@@ -96,43 +96,41 @@ def screenshot(name):
 
 
 def connect_bookmark(idx):
-    """Click bookmark at index. Bookmarks start ~y=140, ~42px apart."""
-    y = 140 + idx * 42
-    click(420, y)
+    """Connect to bookmark by index (1-9 keyboard shortcut)."""
+    key(str(idx + 1))
     wait(2.5)
 
 
 def disconnect():
-    # Disconnect button at top-right, ~x=895, y=67
-    click(895, 67)
+    """Disconnect using Escape."""
+    key("Escape")
     wait(1)
 
 
 def click_back():
-    # Back arrow "<" at ~x=314, y=72
-    click(314, 72)
+    """Go back using Backspace."""
+    key("BackSpace")
     wait(1)
 
 
 def click_continue():
-    # Continue button centered at ~x=640, y=233 (after panel redesign)
-    click(640, 233)
+    """Continue using Enter."""
+    key("Return")
     wait(1)
 
 
 def click_menu_option(idx):
-    """Click menu option by index. Options start ~y=140, ~30px apart."""
-    y = 140 + idx * 30
-    click(450, y)
+    """Select menu option using 1-9 keyboard shortcut."""
+    key(str(idx + 1))
     wait(1)
 
 
 def submit_password(pw="rosebud"):
-    # Access Code field ~y=224, Submit button ~y=266
-    click(640, 224)
-    wait(0.3)
+    """Tab to password field, type, press Enter."""
+    key("Tab")
+    wait(0.2)
     type_t(pw)
-    click(640, 266)
+    key("Return")
     wait(1.5)
 
 

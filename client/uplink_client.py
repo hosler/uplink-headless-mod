@@ -223,6 +223,15 @@ class TabBar:
             tx += tab_spacing
 
     def handle_event(self, event, scale: Scale):
+        # F1-F8 to switch tabs
+        if event.type == pygame.KEYDOWN:
+            if pygame.K_F1 <= event.key <= pygame.K_F8:
+                idx = event.key - pygame.K_F1
+                if idx < len(self.TABS) and self.active != idx:
+                    self.active = idx
+                    self.on_switch(self.TABS[idx])
+                return
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             rect = scale.rect(0, TOPBAR_H, DESIGN_W, TAB_H)
             if rect.collidepoint(event.pos):
