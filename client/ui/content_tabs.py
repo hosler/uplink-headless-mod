@@ -104,6 +104,24 @@ def _draw_data_row(surface, scale, y, hovered, selected=False, alt=False):
     return row_rect
 
 
+def _wrap_text(text, font, max_width):
+    """Helper to wrap text for rendering."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        test = current + " " + word if current else word
+        if font.size(test)[0] > max_width:
+            if current:
+                lines.append(current)
+            current = word
+        else:
+            current = test
+    if current:
+        lines.append(current)
+    return lines
+
+
 def _draw_button(surface, scale, x, y, w, h, label, mouse, enabled=True):
     """Draw a high-fidelity tech button."""
     btn_rect = scale.rect(x, y, w, h)
@@ -244,8 +262,8 @@ class EmailView:
             _draw_data_row(surface, scale, y, hovered, selected, i % 2 == 1)
 
             color = TEXT_WHITE if (hovered or selected) else TEXT_DIM
-            sender = msg.get("from", "")[:20]
-            subject = msg.get("subject", "")[:40]
+            sender = msg.get("from", "")[:25]
+            subject = msg.get("subject", "")[:80]
 
             txt = f_from.render(sender, True, color)
             surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
@@ -274,51 +292,51 @@ class EmailView:
             by = body_y + 26
             # From
             txt = f_head.render(f"From: {msg.get('from', '')}", True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
+            surface.blit(txt, (scale.x(body_x + 20), scale.y(by)))
             by += 24
             # Subject
             txt = f_head.render(f"Subject: {msg.get('subject', '')}", True, PRIMARY)
-            surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
+            surface.blit(txt, (scale.x(body_x + 20), scale.y(by)))
             by += 30
 
             # Separator
             pygame.draw.line(surface, SECONDARY,
-                             (scale.x(body_x + 10), scale.y(by)),
-                             (scale.x(body_x + body_w - 10), scale.y(by)),
+                             (scale.x(body_x + 15), scale.y(by)),
+                             (scale.x(body_x + body_w - 15), scale.y(by)),
                              max(1, scale.h(1)))
-            by += 10
+            by += 15
 
             # Body text — word wrap
             body = msg.get("body", "")
             lines = body.replace("\\n", "\n").split("\n")
             f_body = get_font(scale.fs(14), light=True)
             for raw_line in lines:
-                wrapped = self._wrap_text(raw_line, f_body, scale.w(body_w - 40))
+                wrapped = _wrap_text(raw_line, f_body, scale.w(body_w - 60))
                 for line in wrapped:
                     txt = f_body.render(line, True, TEXT_WHITE)
-                    surface.blit(txt, (scale.x(body_x + 16), scale.y(by)))
+                    surface.blit(txt, (scale.x(body_x + 25), scale.y(by)))
                     by += 22
-                by += 4 # paragraph spacing
+                by += 6 # paragraph spacing
                 if by > body_y + 580:
                     break
             # Attachment indicator
             if msg.get("hasdata"):
-                by += 8
+                by += 10
                 txt = f_body.render("[ ATTACHMENT INCLUDED ]", True, SUCCESS)
-                surface.blit(txt, (scale.x(body_x + 16), scale.y(by)))
+                surface.blit(txt, (scale.x(body_x + 25), scale.y(by)))
         elif self.composing:
             # Compose mode
             f_head = get_font(scale.fs(16))
             f_lbl = get_font(scale.fs(13), light=True)
             by = body_y + 26
             txt = f_head.render("Compose Email", True, PRIMARY)
-            surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
+            surface.blit(txt, (scale.x(body_x + 20), scale.y(by)))
             by += 28
 
             if not self._compose_inputs:
                 from ui.widgets import TextInput
-                inp_x = body_x + 12
-                inp_w = body_w - 24
+                inp_x = body_x + 20
+                inp_w = body_w - 40
                 self._compose_inputs = {
                     "to": TextInput(inp_x, by + 16, inp_w, 28, placeholder="recipient@company.net", size=14),
                     "subject": TextInput(inp_x, by + 64, inp_w, 28, placeholder="Subject", size=14),
@@ -334,7 +352,7 @@ class EmailView:
 
             for label, key in [("To:", "to"), ("Subject:", "subject"), ("Body:", "body"), ("Attach:", "attach")]:
                 txt = f_lbl.render(label, True, SECONDARY)
-                surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
+                surface.blit(txt, (scale.x(body_x + 20), scale.y(by)))
                 by += 16
                 self._compose_inputs[key].dy = by
                 self._compose_inputs[key].draw(surface, scale)
@@ -342,20 +360,22 @@ class EmailView:
 
             # Send button
             by += 10
-            self._send_btn_rect = scale.rect(body_x + 12, by, 140, 28)
-            _draw_button(surface, scale, body_x + 12, by, 140, 28, "SEND", mouse)
+            self._send_btn_rect = scale.rect(body_x + 20, by, 140, 28)
+            _draw_button(surface, scale, body_x + 20, by, 140, 28, "SEND", mouse)
             # Cancel button
-            self._cancel_btn_rect = scale.rect(body_x + 170, by, 140, 28)
-            _draw_button(surface, scale, body_x + 170, by, 140, 28, "CANCEL", mouse)
+            self._cancel_btn_rect = scale.rect(body_x + 180, by, 140, 28)
+            _draw_button(surface, scale, body_x + 180, by, 140, 28, "CANCEL", mouse)
         else:
             f = get_font(scale.fs(14), light=True)
             txt = f.render("Select a message to read", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(body_x + 12), scale.y(body_y + 40)))
+            tx = scale.x(body_x + body_w // 2) - txt.get_width() // 2
+            ty = scale.y(body_y + 80)
+            surface.blit(txt, (tx, ty))
 
             # Compose button
-            compose_y = body_y + 80
-            self._compose_btn_rect = scale.rect(body_x + 12, compose_y, 180, 28)
-            _draw_button(surface, scale, body_x + 12, compose_y, 180, 28, "COMPOSE EMAIL", mouse)
+            compose_y = body_y + 120
+            self._compose_btn_rect = scale.rect(body_x + (body_w - 180) // 2, compose_y, 180, 28)
+            _draw_button(surface, scale, body_x + (body_w - 180) // 2, compose_y, 180, 28, "COMPOSE EMAIL", mouse)
 
     def handle_event(self, event, scale, state):
         # Compose mode input handling
@@ -431,22 +451,6 @@ class EmailView:
         self._compose_body = ""
         self._compose_attach = ""
 
-
-    def _wrap_text(self, text, font, max_width):
-        words = text.split()
-        lines = []
-        current = ""
-        for word in words:
-            test = current + " " + word if current else word
-            if font.size(test)[0] > max_width:
-                if current:
-                    lines.append(current)
-                current = word
-            else:
-                current = test
-        if current:
-            lines.append(current)
-        return lines
 
 # ============================================================================
 # Gateway View — model info, hardware, files, memory bar
@@ -581,7 +585,8 @@ class GatewayView:
         # Gateway files
         files = state.gateway_files
         if files:
-            columns = [("Filename", SCR_X + 35), ("Size", SCR_X + 525)]
+            columns = [("Filename", SCR_X + 35), ("Size", SCR_X + 525), 
+                       ("Encryption", SCR_X + 700), ("Compression", SCR_X + 900)]
             cy = _draw_header_row(surface, scale, cy, columns)
             self._file_rows_y = cy
 
@@ -595,10 +600,27 @@ class GatewayView:
                 _draw_data_row(surface, scale, y, hovered, alt=i % 2 == 1)
 
                 color = TEXT_WHITE if hovered else TEXT_DIM
-                txt = f_row.render(f.get("title", "")[:50], True, color)
+                txt = f_row.render(f.get("title", "")[:60], True, color)
                 surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
+                
                 txt = f_row.render(f"{f.get('size', 0)} GQ", True, TEXT_DIM)
                 surface.blit(txt, (scale.x(SCR_X + 525), scale.y(y + 7)))
+
+                # Encryption
+                enc = f.get("encrypted", 0)
+                if enc:
+                    txt = f_row.render(f"LEVEL {enc}", True, ALERT)
+                else:
+                    txt = f_row.render("NONE", True, (60, 80, 100))
+                surface.blit(txt, (scale.x(SCR_X + 700), scale.y(y + 7)))
+
+                # Compression
+                comp = f.get("compressed", 0)
+                if comp:
+                    txt = f_row.render(f"LEVEL {comp}", True, SUCCESS)
+                else:
+                    txt = f_row.render("NONE", True, (60, 80, 100))
+                surface.blit(txt, (scale.x(SCR_X + 900), scale.y(y + 7)))
 
             if len(files) > max_vis:
                 txt = f_small.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(files))} of {len(files)}", True, TEXT_DIM)
@@ -722,7 +744,7 @@ class MissionsView:
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
             surface.blit(txt, (scale.x(SCR_X + 135), scale.y(y + 7)))
 
-            desc = m.get("description", "")[:35]
+            desc = m.get("description", "")[:50]
             txt = f_row.render(desc, True, color)
             surface.blit(txt, (scale.x(SCR_X + 225), scale.y(y + 7)))
 
@@ -743,41 +765,39 @@ class MissionsView:
 
             # Employer
             txt = f_head.render(f"Employer: {m.get('employer', 'Unknown')}", True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+            surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
             dy += 24
 
             # Contact
             txt = f_body.render(f"Contact: {m.get('contact', '')}", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+            surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
             dy += 24
 
             # Payment + Difficulty
             txt = f_head.render(f"Payment: ${m.get('payment', 0):,}", True, SUCCESS)
-            surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+            surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
             diff = m.get("difficulty", 0)
             txt = f_body.render(f"Difficulty: {diff}", True, TEXT_WHITE)
             surface.blit(txt, (scale.x(detail_x + 250), scale.y(dy)))
-            dy += 30
+            dy += 35
 
             # Separator
             pygame.draw.line(surface, SECONDARY,
-                             (scale.x(detail_x + 10), scale.y(dy)),
-                             (scale.x(detail_x + detail_w - 10), scale.y(dy)),
+                             (scale.x(detail_x + 15), scale.y(dy)),
+                             (scale.x(detail_x + detail_w - 15), scale.y(dy)),
                              max(1, scale.h(1)))
-            dy += 12
+            dy += 15
 
             # Description
             desc = m.get("description", "")
             lines = desc.replace("\\n", "\n").split("\n")
-            for line in lines:
-                while len(line) > 60:
-                    txt = f_body.render(line[:60], True, TEXT_WHITE)
-                    surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+            for raw_line in lines:
+                wrapped = _wrap_text(raw_line, f_body, scale.w(detail_w - 40))
+                for line in wrapped:
+                    txt = f_body.render(line, True, TEXT_WHITE)
+                    surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                     dy += 20
-                    line = line[60:]
-                txt = f_body.render(line, True, TEXT_WHITE)
-                surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
-                dy += 20
+                dy += 4
             dy += 10
 
             # Completion targets
@@ -785,11 +805,11 @@ class MissionsView:
             compB = m.get("completionB", "")
             if compA:
                 txt = f_sm.render(f"Target A: {compA}", True, SECONDARY)
-                surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                 dy += 20
             if compB:
                 txt = f_sm.render(f"Target B: {compB}", True, SECONDARY)
-                surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                 dy += 20
             dy += 10
 
@@ -798,32 +818,32 @@ class MissionsView:
             self._link_rects = []
             if links:
                 txt = f_head.render("Links:", True, SECONDARY)
-                surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                 dy += 22
                 for lk in links:
-                    lk_rect = scale.rect(detail_x + 12, dy, detail_w - 24, 20)
+                    lk_rect = scale.rect(detail_x + 20, dy, detail_w - 40, 20)
                     lk_hover = lk_rect.collidepoint(mouse)
                     txt = f_body.render(f"  > {lk}", True, TEXT_WHITE if lk_hover else PRIMARY)
-                    surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                    surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                     self._link_rects.append((lk_rect, lk))
                     dy += 20
 
             # Codes
             codes = m.get("codes", {})
             if codes:
-                dy += 6
+                dy += 10
                 txt = f_head.render("Access Codes:", True, SECONDARY)
-                surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                 dy += 22
                 for ip, code in codes.items():
                     txt = f_body.render(f"  {ip}: {code}", True, SUCCESS)
-                    surface.blit(txt, (scale.x(detail_x + 12), scale.y(dy)))
+                    surface.blit(txt, (scale.x(detail_x + 20), scale.y(dy)))
                     dy += 20
 
             # "Send Completion" button
-            dy += 16
-            self._complete_btn_rect = scale.rect(detail_x + 12, dy, 220, 28)
-            _draw_button(surface, scale, detail_x + 12, dy, 220, 28,
+            dy += 20
+            self._complete_btn_rect = scale.rect(detail_x + 20, dy, 220, 28)
+            _draw_button(surface, scale, detail_x + 20, dy, 220, 28,
                          "SEND COMPLETION", mouse)
         else:
             # Centered empty state with icon
@@ -912,7 +932,7 @@ class BBSView:
             return
 
         columns = [("Payment", SCR_X + 35), ("Diff", SCR_X + 175),
-                   ("Employer", SCR_X + 265), ("Description", SCR_X + 495),
+                   ("Employer", SCR_X + 265), ("Description", SCR_X + 530),
                    ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
@@ -940,12 +960,12 @@ class BBSView:
             surface.blit(txt, (scale.x(SCR_X + 175), scale.y(y + 7)))
 
             # Employer
-            txt = f_row.render(m.get("employer", "")[:25], True, color)
+            txt = f_row.render(m.get("employer", "")[:35], True, color)
             surface.blit(txt, (scale.x(SCR_X + 265), scale.y(y + 7)))
 
             # Description
-            txt = f_row.render(m.get("description", "")[:60], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 495), scale.y(y + 7)))
+            txt = f_row.render(m.get("description", "")[:120], True, color)
+            surface.blit(txt, (scale.x(SCR_X + 530), scale.y(y + 7)))
 
             # Accept button
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "ACCEPT", mouse)
@@ -1012,8 +1032,8 @@ class SoftwareView:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 680),
-                   ("Size", SCR_X + 830), ("Cost", SCR_X + 980), ("", SCR_X + SCR_W - 120)]
+        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 600),
+                   ("Size", SCR_X + 750), ("Cost", SCR_X + 900), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         f_row = get_font(scale.fs(15), light=True)
@@ -1033,15 +1053,15 @@ class SoftwareView:
             surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             txt = f_row.render(f"v{sw.get('version', 1)}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 680), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 7)))
 
             txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 830), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 750), scale.y(y + 7)))
 
             cost = sw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 980), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 900), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 
