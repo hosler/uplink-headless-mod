@@ -140,8 +140,8 @@ def t_login_visible():
 
 
 def t_type_credentials():
-    click(506, 306)  # Handle field
-    wait(0.3)
+    # Handle input auto-focused on login screen
+    wait(0.5)
     type_text("TestAgent")
     press_key("Tab")
     type_text("test123")
@@ -149,7 +149,7 @@ def t_type_credentials():
 
 
 def t_connect():
-    click(640, 410)  # CONNECT button
+    press_key("Return")  # Submit login form
     wait(4)
     assert_state("03_connected",
                  player_handle="TestAgent")
@@ -157,35 +157,24 @@ def t_connect():
 
 def t_bookmarks():
     # After joining, should be on gateway with bookmarks
-    # (DialogScreen is the gateway startup dialog)
     assert_state("04_bookmarks", player_handle="TestAgent")
 
 
 def t_dialog_ok():
-    # Click dialog_ok — the Continue button
-    # From the screenshot, Continue is at roughly (592, 170)
-    click(592, 170)
+    # Press Enter to dismiss gateway dialog
+    press_key("Return")
     wait(1.5)
-    state = read_state()
-    # If still on dialog, try other positions
-    if state.get("screen_type") == "DialogScreen":
-        click(592, 165)
-        wait(1)
-    if state.get("screen_type") == "DialogScreen":
-        click(592, 175)
-        wait(1)
     screenshot("05_after_dialog")
-    state = read_state()
-    # After gateway dialog, should be on some screen (Links, Menu, etc)
-    # Not critical which one — just verify we're past the dialog
 
 
 def t_connect_server():
-    # Disconnect first if connected
-    click(900, 63)
+    # Press Escape first to disconnect if connected
+    press_key("Escape")
     wait(1)
-    # Click first bookmark
-    click(360, 126)
+    # Press F1 for Browser tab, then 1 for first bookmark
+    press_key("F1")
+    wait(0.5)
+    press_key("1")  # Connect to first bookmark (Test Machine)
     wait(0.5)
     screenshot("06_connecting")
     wait(2)
@@ -195,71 +184,67 @@ def t_connect_server():
 
 
 def t_navigate_continue():
-    # On test machine message screen — click Continue
-    click(592, 170)
+    # On test machine message screen — press Enter for Continue
+    press_key("Return")
     wait(1)
-    state = read_state()
     screenshot("08_after_continue")
-    # Should have advanced (screen type changed)
 
 
 def t_back():
     before = read_state().get("screen_type", "")
-    click(306, 63)  # Back arrow
+    press_key("BackSpace")  # Back
     wait(1)
     after = read_state().get("screen_type", "")
     screenshot("09_back")
-    # Verify screen actually changed (or at minimum we're still connected)
     assert_state("09_back_state", player_connected=True)
-    # If we were on a sub-screen, back should change the screen
     if before not in ("MessageScreen", "none", ""):
         assert before != after or True, f"Back didn't change screen: {before} → {after}"
 
 
 def t_disconnect():
-    click(900, 63)  # Disconnect
+    press_key("Escape")  # Disconnect
     wait(1)
     assert_state("10_disconnected", player_connected=False)
 
 
 def t_map_tab():
-    click(160, 38)
+    press_key("F2")
     wait(1)
     screenshot("11_map")
 
 
 def t_email_tab():
-    click(320, 38)
+    press_key("F3")
     wait(1)
     screenshot("12_email")
 
 
 def t_gateway_tab():
-    click(440, 38)
+    press_key("F4")
     wait(1)
     screenshot("13_gateway")
 
 
 def t_missions_tab():
-    click(600, 38)
+    press_key("F5")
     wait(1)
     screenshot("14_missions")
 
 
 def t_bbs_tab():
-    click(730, 38)
+    press_key("F6")
     wait(1)
     screenshot("15_bbs")
 
 
 def t_software_tab():
-    click(860, 38)
+    press_key("F7")
     wait(1)
     screenshot("16_software")
 
 
 def t_hardware_tab():
-    click(1140, 38)
+    press_key("F8")
     wait(1)
     screenshot("17_hardware")
 

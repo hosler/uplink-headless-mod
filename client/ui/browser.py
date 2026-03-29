@@ -140,7 +140,7 @@ class BrowserView:
         f_name = get_font(scale.fs(22))
         f_ip = get_font(scale.fs(15), light=True)
 
-        txt = f_title.render("G A T E W A Y", True, PRIMARY)
+        txt = f_title.render("B O O K M A R K S", True, PRIMARY)
         surface.blit(txt, (scale.x(SCR_X + 10), scale.y(CONTENT_Y)))
         txt = f_sub.render("Your saved links", True, SECONDARY)
         surface.blit(txt, (scale.x(SCR_X + 10), scale.y(CONTENT_Y + 48)))
@@ -363,7 +363,8 @@ class BrowserView:
             txt = f_title.render(spaced, True, PRIMARY)
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
             cy += 46
-        if display_sub:
+        # Message/Dialog screens draw their own internal headers, so suppress redundant subtitle here
+        if display_sub and st not in ("MessageScreen", "DialogScreen"):
             txt = f_sub.render(display_sub, True, SECONDARY)
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
             cy += 36
@@ -739,10 +740,10 @@ class BrowserView:
                 self._user_input.cursor_pos = 5
 
         if st == "UserIDScreen":
-            Label("User ID", 16, SECONDARY, True).draw(surface, scale, form_x, cy - 24)
+            Label("USER ID:", 15, SECONDARY, True).draw(surface, scale, form_x, cy - 26)
             self._user_input.draw(surface, scale)
 
-        Label("Access Code", 16, SECONDARY, True).draw(surface, scale, form_x, cy + 28)
+        Label("ACCESS CODE:", 15, SECONDARY, True).draw(surface, scale, form_x, cy + 26)
         self._pw_input.draw(surface, scale)
 
         # Submit button
@@ -1837,8 +1838,8 @@ class BrowserView:
                         self.net.menu_select(idx)
                         audio.play_sfx("popup")
                     return
-            # F5: Run Password Breaker
-            if event.key == pygame.K_F5 and st in ("PasswordScreen", "UserIDScreen"):
+            # P: Run Password Breaker
+            if event.key == pygame.K_p and st in ("PasswordScreen", "UserIDScreen"):
                 if not self._cracking:
                     import time as _t
                     self._cracking = True

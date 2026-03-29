@@ -230,7 +230,7 @@ class EmailView:
         f_subj = get_font(scale.fs(13), light=True)
 
         # Column headers for list
-        columns = [("From", SCR_X + 10), ("Subject", SCR_X + 180)]
+        columns = [("From", SCR_X + 35), ("Subject", SCR_X + 210)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         max_vis = 20
@@ -248,9 +248,9 @@ class EmailView:
             subject = msg.get("subject", "")[:40]
 
             txt = f_from.render(sender, True, color)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
             txt = f_subj.render(subject, True, color)
-            surface.blit(txt, (scale.x(SCR_X + 180), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 210), scale.y(y + 7)))
 
         # Scroll indicator + scrollbar
         if len(msgs) > max_vis:
@@ -581,7 +581,7 @@ class GatewayView:
         # Gateway files
         files = state.gateway_files
         if files:
-            columns = [("Filename", SCR_X + 10), ("Size", SCR_X + 500)]
+            columns = [("Filename", SCR_X + 35), ("Size", SCR_X + 525)]
             cy = _draw_header_row(surface, scale, cy, columns)
             self._file_rows_y = cy
 
@@ -596,9 +596,9 @@ class GatewayView:
 
                 color = TEXT_WHITE if hovered else (140, 170, 200)
                 txt = f_row.render(f.get("title", "")[:50], True, color)
-                surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+                surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
                 txt = f_row.render(f"{f.get('size', 0)} GQ", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 7)))
+                surface.blit(txt, (scale.x(SCR_X + 525), scale.y(y + 7)))
 
             if len(files) > max_vis:
                 txt = f_small.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(files))} of {len(files)}", True, TEXT_DIM)
@@ -703,7 +703,7 @@ class MissionsView:
         f_row = get_font(scale.fs(15), light=True)
         f_pay = get_font(scale.fs(14))
 
-        columns = [("Payment", SCR_X + 10), ("Difficulty", SCR_X + 120), ("Description", SCR_X + 210)]
+        columns = [("Payment", SCR_X + 35), ("Diff", SCR_X + 135), ("Description", SCR_X + 225)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         for i, m in enumerate(missions):
@@ -715,16 +715,16 @@ class MissionsView:
 
             color = TEXT_WHITE if (hovered or selected) else TEXT_DIM
             txt = f_pay.render(f"${m.get('payment', 0):,}", True, SUCCESS)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             diff = m.get("difficulty", 0)
             diff_color = SUCCESS if diff <= 3 else ((255, 200, 50) if diff <= 6 else ALERT)
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
-            surface.blit(txt, (scale.x(SCR_X + 120), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 135), scale.y(y + 7)))
 
             desc = m.get("description", "")[:35]
             txt = f_row.render(desc, True, color)
-            surface.blit(txt, (scale.x(SCR_X + 210), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 225), scale.y(y + 7)))
 
         # Right panel: mission details
         detail_x = SCR_X + list_w + 30
@@ -911,8 +911,8 @@ class BBSView:
                               "New contracts are posted periodically. Check back later.")
             return
 
-        columns = [("Payment", SCR_X + 10), ("Diff", SCR_X + 160),
-                   ("Employer", SCR_X + 250), ("Description", SCR_X + 480),
+        columns = [("Payment", SCR_X + 35), ("Diff", SCR_X + 175),
+                   ("Employer", SCR_X + 265), ("Description", SCR_X + 495),
                    ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
@@ -931,21 +931,21 @@ class BBSView:
 
             # Payment — always teal
             txt = f_pay.render(f"${m.get('payment', 0):,}", True, SUCCESS)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             # Difficulty stars
             diff = m.get("difficulty", 0)
             diff_color = SUCCESS if diff <= 3 else ((255, 200, 50) if diff <= 6 else ALERT)
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
-            surface.blit(txt, (scale.x(SCR_X + 160), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 175), scale.y(y + 7)))
 
             # Employer
             txt = f_row.render(m.get("employer", "")[:25], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 250), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 265), scale.y(y + 7)))
 
             # Description
             txt = f_row.render(m.get("description", "")[:60], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 480), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 495), scale.y(y + 7)))
 
             # Accept button
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "ACCEPT", mouse)
@@ -1012,8 +1012,8 @@ class SoftwareView:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 10), ("Version", SCR_X + 700),
-                   ("Size", SCR_X + 850), ("Cost", SCR_X + 1000), ("", SCR_X + SCR_W - 120)]
+        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 725),
+                   ("Size", SCR_X + 875), ("Cost", SCR_X + 1025), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         f_row = get_font(scale.fs(15), light=True)
@@ -1030,18 +1030,18 @@ class SoftwareView:
             color = TEXT_WHITE if hovered else TEXT_DIM
 
             txt = f_name.render(sw.get("title", ""), True, color)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             txt = f_row.render(f"v{sw.get('version', 1)}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 700), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 725), scale.y(y + 7)))
 
             txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 850), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 875), scale.y(y + 7)))
 
             cost = sw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 1000), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 1025), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 
@@ -1109,7 +1109,7 @@ class HardwareView:
             _draw_empty_state(surface, scale, cy, "No hardware available.")
             return
 
-        columns = [("Component", SCR_X + 10), ("Cost", SCR_X + 1000), ("", SCR_X + SCR_W - 120)]
+        columns = [("Component", SCR_X + 35), ("Cost", SCR_X + 1025), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         f_row = get_font(scale.fs(15), light=True)
@@ -1126,12 +1126,12 @@ class HardwareView:
             color = TEXT_WHITE if hovered else TEXT_DIM
 
             txt = f_name.render(hw.get("title", ""), True, color)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
 
             cost = hw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 1000), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 1025), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 
