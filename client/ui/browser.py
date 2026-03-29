@@ -30,7 +30,7 @@ class BrowserView:
         self._links_requested = False
         self._pw_input = None
         self._user_input = None
-        self._search_input = TextInput(SCR_X + 10, 920, 500, 36, placeholder="Search InterNIC...", size=18)
+        self._search_input = TextInput(SCR_X + 10, 920, 500, TAB_H, placeholder="Search InterNIC...", size=18)
         self._scroll = 0
         self._ctx_menu = None   # list of (label, callback) or None
         self._ctx_pos = (0, 0)
@@ -374,7 +374,7 @@ class BrowserView:
         if display_sub and st not in ("MessageScreen", "DialogScreen", "PasswordScreen", "UserIDScreen"):
             txt = f_sub.render(display_sub, True, SECONDARY)
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
-            cy += 36
+            cy += TAB_H
         cy += 14
 
         # Separator
@@ -431,12 +431,12 @@ class BrowserView:
             self._search_input.dx = SCR_X + 220
             self._search_input.dy = cy - 2
             self._search_input.dw = 400
-            self._search_input.dh = 36
+            self._search_input.dh = TAB_H
             self._search_input.placeholder = "ENTER KEYWORDS..."
             self._search_input.draw(surface, scale)
 
             # Add "GO" button
-            go_r = scale.rect(SCR_X + 630, cy - 2, 80, 36)
+            go_r = scale.rect(SCR_X + 630, cy - 2, 80, TAB_H)
             mouse = pygame.mouse.get_pos()
             gh = go_r.collidepoint(mouse)
             pygame.draw.rect(surface, PRIMARY if gh else SECONDARY, go_r, 1, border_radius=2)
@@ -646,7 +646,7 @@ class BrowserView:
                 
                 # Manage TextInput widget
                 if wname not in self._dialog_inputs:
-                    self._dialog_inputs[wname] = TextInput(form_x, cy, form_w, 36, placeholder=cap, masked=(wtype==4), size=18)
+                    self._dialog_inputs[wname] = TextInput(form_x, cy, form_w, TAB_H, placeholder=cap, masked=(wtype==4), size=18)
                     # If it's the first input, focus it
                     if len(self._dialog_inputs) == 1:
                         self._dialog_inputs[wname].focused = True
@@ -861,7 +861,7 @@ class BrowserView:
         self._search_input.dy = cy - 8
         self._search_input.dx = SCR_X + 540
         self._search_input.dw = 350
-        self._search_input.dh = 36
+        self._search_input.dh = TAB_H
         self._search_input.placeholder = "SEARCH SYSTEMS..."
         self._search_input.size = 16
         self._search_input.draw(surface, scale)
@@ -1164,7 +1164,7 @@ class BrowserView:
             title = sys_info.get("title", "Unknown")
             level = sys_info.get("level", "?")
 
-            row_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, 36)
+            row_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, TAB_H)
             bg = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
             bg.fill((255, 255, 255, 8))
             surface.blit(bg, row_rect.topleft)
@@ -1173,7 +1173,7 @@ class BrowserView:
             surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy + 8)))
             txt = f_value.render(level, True, SUCCESS)
             surface.blit(txt, (scale.x(SCR_X + 400), scale.y(cy + 8)))
-            cy += 40
+            cy += TAB_H + 4
 
     def _draw_console(self, surface, scale, state, cy):
         """Render Console screen with interactive command prompt."""
@@ -1238,7 +1238,7 @@ class BrowserView:
         # Interactive prompt at bottom
         prompt_y = cy + term_h - 45
         if not self._console_input:
-            self._console_input = TextInput(SCR_X + 30, prompt_y, SCR_W - 70, 32,
+            self._console_input = TextInput(SCR_X + 30, prompt_y, SCR_W - 70, STATUSBAR_H,
                                             placeholder="ENTER COMMAND...", size=16)
             self._console_input.focused = True
 
@@ -1260,7 +1260,7 @@ class BrowserView:
             if self._console_input.text:
                 txt = font.render(self._console_input.text.upper(), True, TEXT_WHITE)
             else:
-                txt = font.render(self._console_input.placeholder, True, (40, 70, 55))
+                txt = font.render(self._console_input.placeholder, True, (60, 140, 120))
             surface.blit(txt, (rect.x, rect.y + (rect.h - txt.get_height()) // 2))
             
             # Custom terminal cursor (block)
@@ -1535,7 +1535,7 @@ class BrowserView:
         row_h = 40
 
         # Column header background
-        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, 36)
+        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, TAB_H)
         bg = pygame.Surface((head_rect.w, head_rect.h), pygame.SRCALPHA)
         bg.fill((*PANEL_BG, 120))
         surface.blit(bg, head_rect.topleft)
@@ -1572,7 +1572,7 @@ class BrowserView:
             
             # Filename
             txt = f_row.render(f["title"][:40].upper(), True, color)
-            surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            surface.blit(txt, (scale.x(SCR_X + 25), row_rect.y + (row_rect.h - txt.get_height()) // 2))
             
             # Size
             txt = f_row.render(f"{f['size']} GQ", True, TEXT_WHITE if hovered else TEXT_DIM)
@@ -1605,10 +1605,10 @@ class BrowserView:
         f_row = get_font(scale.fs(14), light=True)
         f_small = get_font(scale.fs(13), light=True)
         max_vis = 18
-        row_h = 36
+        row_h = TAB_H
 
         # Column header background
-        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, 36)
+        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, TAB_H)
         bg = pygame.Surface((head_rect.w, head_rect.h), pygame.SRCALPHA)
         bg.fill((*PANEL_BG, 120))
         surface.blit(bg, head_rect.topleft)
@@ -1651,7 +1651,7 @@ class BrowserView:
 
             # Date
             txt = f_row.render(log.get("date", "")[:18], True, color)
-            surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            surface.blit(txt, (scale.x(SCR_X + 25), row_rect.y + (row_rect.h - txt.get_height()) // 2))
             
             # From IP
             txt = f_row.render(log.get("from_ip", "")[:18], True, color)
@@ -1823,7 +1823,7 @@ class BrowserView:
             mt_val = sd.get("maintitle", "")
             sub_val = sd.get("subtitle", "")
             if mt_val: ctx_cy += 46
-            if sub_val: ctx_cy += 36
+            if sub_val: ctx_cy += TAB_H
             ctx_cy += 24 + 26 + 6  # separator + headers
 
             if files:
@@ -2031,7 +2031,7 @@ class BrowserView:
             cy += 46  # display_title always shown
         display_sub = sub if (mt and mt not in ("Uplink", "uplink")) or server_name else ""
         if display_sub:
-            cy += 36
+            cy += TAB_H
         cy += 24  # separator (14) + post-separator (10)
 
         if st == "MenuScreen" or st == "HighSecurityScreen":
@@ -2167,11 +2167,11 @@ class BrowserView:
             query = self._search_input.text.strip().lower()
             if query:
                 links = [l for l in links if query in l.get("name", "").lower() or query in l.get("ip", "").lower()]
-            link_cy = cy + 40  # after search box
-            row_h = 36
+            link_cy = cy + 45 + 38
+            row_h = 42
             for i, link in enumerate(links):
                 y = link_cy + i * row_h
-                if y > 960:
+                if y > 980:
                     break
                 rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
                 if rect.collidepoint(event.pos):
