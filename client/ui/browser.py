@@ -209,7 +209,7 @@ class BrowserView:
 
         # Hint at bottom
         f_hint = get_font(scale.fs(14), light=True)
-        txt = f_hint.render("Connect to InterNIC to search for more servers", True, TEXT_DIM)
+        txt = f_hint.render("Connect to InterNIC to search for more servers", True, SECONDARY)
         surface.blit(txt, (scale.x(SCR_X + 10), scale.y(960)))
 
     def _handle_bookmarks_event(self, event, scale, state):
@@ -890,8 +890,15 @@ class BrowserView:
             theme_color = ALERT if is_warning else PRIMARY
             subtitle = state.screen_data.get("subtitle", "MESSAGE").upper()
             
-            lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
-            panel_h = len(lines) * 24 + 100
+            # Deduplicate: if subtitle is almost same as first few words of message, or message is subtitle
+            clean_msg = msg_text.strip().upper()
+            if subtitle in clean_msg and len(clean_msg) < len(subtitle) + 10:
+                # Same message, hide the body to avoid double-rendering identical text
+                lines = []
+            else:
+                lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
+            
+            panel_h = max(60, len(lines) * 24 + 100)
             panel_rect = scale.rect(SCR_X + 20, cy, SCR_W - 40, panel_h)
             
             # Background with subtle gradient/glow
@@ -934,12 +941,25 @@ class BrowserView:
             
             c = ALERT if (msg_text and any(k in msg_text.upper() for k in ("UNAUTHORISED", "CRIMINAL"))) else PRIMARY
             
-            if hovered:
-                pygame.draw.rect(surface, c, rect, 0, border_radius=4)
-                txt = f_btn.render("PROCEED", True, (0, 0, 0))
-            else:
-                pygame.draw.rect(surface, c, rect, 1, border_radius=4)
-                txt = f_btn.render("PROCEED", True, c)
+            # Subtle fill
+            fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            fill.fill((*c, 60 if hovered else 25))
+            surface.blit(fill, rect.topleft)
+            
+            # Border + corner accents
+            pygame.draw.rect(surface, (*c, 140), rect, 1, border_radius=4)
+            # Corner accents (tech look)
+            cw, ch = scale.w(12), scale.h(12)
+            pygame.draw.line(surface, c, rect.topleft, (rect.x + cw, rect.y), 2)
+            pygame.draw.line(surface, c, rect.topleft, (rect.x, rect.y + ch), 2)
+            pygame.draw.line(surface, c, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), 2)
+            pygame.draw.line(surface, c, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), 2)
+            
+            txt_color = (0, 0, 0) if (hovered and not is_warning) else (WHITE if hovered else c)
+            if is_warning and hovered:
+                txt_color = (255, 255, 255)
+            
+            txt = f_btn.render("PROCEED", True, txt_color)
             surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
 
     def _draw_generic(self, surface, scale, state, cy):

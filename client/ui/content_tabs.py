@@ -538,7 +538,7 @@ class GatewayView:
         
         if mem_total > 0:
             fill_pct = min(1.0, mem_used / mem_total)
-            fill_color = ALERT if fill_pct > 0.9 else (SUCCESS if fill_pct < 0.7 else WARNING)
+            fill_color = ALERT if fill_pct > 0.9 else (SUCCESS if fill_pct < 0.7 else PRIMARY)
             fill_w = int(bar_rect.w * fill_pct)
             if fill_w > 0:
                 # Main fill

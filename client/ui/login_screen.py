@@ -11,15 +11,15 @@ class LoginScreen:
         self.handle_input = TextInput(760, 460, 400, 40, placeholder="Agent handle", size=24)
         self.password_input = TextInput(760, 530, 400, 40, placeholder="Password", masked=True, size=24)
         self.handle_input.focused = True
-        self.connect_btn = Button("CONNECT", 810, 605, 300, 54, callback=self._submit, color=PRIMARY, size=28)
+        self.connect_btn = Button("CONNECT", 810, 610, 300, 54, callback=self._submit, color=PRIMARY, size=32)
         self.error_msg = ""
         self.title = Label("U P L I N K", size=92, color=PRIMARY)
-        self.subtitle = Label("Neural Interface Access v4.2.0", size=24, color=SECONDARY, light=True)
-        self.handle_label = Label("HANDLE", size=18, color=SECONDARY, light=False)
-        self.password_label = Label("PASSWORD", size=18, color=SECONDARY, light=False)
+        self.subtitle = Label("Neural Interface Access v4.2.0", size=26, color=PRIMARY, light=True)
+        self.handle_label = Label("HANDLE", size=18, color=PRIMARY, light=False)
+        self.password_label = Label("PASSWORD", size=18, color=PRIMARY, light=False)
         
         # Tech panel for login
-        self.panel = HackerPanel(710, 410, 500, 290, title="Secure Login", color=SECONDARY)
+        self.panel = HackerPanel(710, 410, 500, 300, title="Secure Login", color=SECONDARY)
 
     def _submit(self):
         handle = self.handle_input.text.strip()
@@ -53,9 +53,9 @@ class LoginScreen:
         self.panel.draw(surface, scale)
 
         # Title
-        self.title.draw(surface, scale, 0, 200, align="center", max_w=1920)
+        self.title.draw(surface, scale, 0, 180, align="center", max_w=1920)
         # Subtitle
-        self.subtitle.draw(surface, scale, 0, 310, align="center", max_w=1920)
+        self.subtitle.draw(surface, scale, 0, 290, align="center", max_w=1920)
 
         # Labels
         self.handle_label.draw(surface, scale, 760, 432)
