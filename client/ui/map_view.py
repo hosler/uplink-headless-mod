@@ -1,16 +1,17 @@
 """Map tab: visual server map with clickable nodes and connection path."""
 import hashlib
 import pygame
+import time
 from ui.theme import (Scale, get_font, PRIMARY, SECONDARY, TEXT_WHITE, TEXT_DIM,
                       PANEL_BG, ALERT, SUCCESS, TOPBAR_H, TAB_H, STATUSBAR_H,
                       DESIGN_W, DESIGN_H, BG_DARK)
-
+from ui.widgets import HackerPanel
 
 # Map area in design coordinates
 MAP_X = 40
-MAP_Y = TOPBAR_H + TAB_H + 10
+MAP_Y = TOPBAR_H + TAB_H + 40
 MAP_W = DESIGN_W - 80
-MAP_H = DESIGN_H - TOPBAR_H - TAB_H - STATUSBAR_H - 30
+MAP_H = DESIGN_H - TOPBAR_H - TAB_H - STATUSBAR_H - 60
 
 DOT_RADIUS = 8
 HOVER_RADIUS = 14
@@ -34,20 +35,28 @@ class MapView:
         self._tooltip = ""
         self._tooltip_pos = (0, 0)
         self.bounce_ips = []  # planned bounce route (list of IPs)
+        self.panel = HackerPanel(MAP_X, MAP_Y, MAP_W, MAP_H, title="Global Server Topology")
+        self._scanline_surf = None
 
     def on_activate(self):
         self.net.get_links()
         self.net.get_trace()
+
+    def _draw_scanlines(self, surface, rect):
+        if self._scanline_surf is None or self._scanline_surf.get_size() != (rect.w, rect.h):
+            self._scanline_surf = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            for y in range(0, rect.h, 3):
+                pygame.draw.line(self._scanline_surf, (0, 0, 0, 40), (0, y), (rect.w, y))
+        surface.blit(self._scanline_surf, rect.topleft)
 
     def draw(self, surface, scale: Scale, state):
         links = state.links
         conn_nodes = state.connection.get("nodes", [])
         trace = state.trace
 
-        # Map background
+        # Panel
+        self.panel.draw(surface, scale)
         map_rect = scale.rect(MAP_X, MAP_Y, MAP_W, MAP_H)
-        pygame.draw.rect(surface, (8, 14, 22), map_rect, border_radius=4)
-        pygame.draw.rect(surface, SECONDARY, map_rect, 1, border_radius=4)
 
         # Grid lines (subtle)
         grid_color = (15, 25, 35)
@@ -57,6 +66,9 @@ class MapView:
         for gy in range(8):
             y = map_rect.y + int(map_rect.h * gy / 8)
             pygame.draw.line(surface, grid_color, (map_rect.x, y), (map_rect.right, y))
+
+        # Scanlines
+        self._draw_scanlines(surface, map_rect)
 
         # Connection path lines
         if len(conn_nodes) >= 2:
@@ -80,11 +92,21 @@ class MapView:
                     width = 2
                 pygame.draw.line(surface, color, points[i], points[i + 1], width)
 
-            # Arrows along path
+            # Data packets (moving dots)
+            t = (time.time() * 1.5) % 1.0
             for i in range(len(points) - 1):
-                mx = (points[i][0] + points[i + 1][0]) // 2
-                my = (points[i][1] + points[i + 1][1]) // 2
-                pygame.draw.circle(surface, PRIMARY, (mx, my), 3)
+                p1 = points[i]
+                p2 = points[i+1]
+                # Multiple packets per segment
+                for offset in [0, 0.33, 0.66]:
+                    pt = (t + offset) % 1.0
+                    px = p1[0] + (p2[0] - p1[0]) * pt
+                    py = p1[1] + (p2[1] - p1[1]) * pt
+                    pygame.draw.circle(surface, PRIMARY, (int(px), int(py)), 3)
+                    # Glow for packet
+                    ps = pygame.Surface((12, 12), pygame.SRCALPHA)
+                    pygame.draw.circle(ps, (*PRIMARY, 80), (6, 6), 6)
+                    surface.blit(ps, (int(px)-6, int(py)-6))
 
         # Planned bounce path (dashed cyan lines)
         if self.bounce_ips:
@@ -158,11 +180,13 @@ class MapView:
                 color = SECONDARY
                 radius = scale.w(DOT_RADIUS)
 
-            # Glow effect for hovered
-            if hovered:
-                glow = pygame.Surface((radius * 4, radius * 4), pygame.SRCALPHA)
-                pygame.draw.circle(glow, (*PRIMARY, 40), (radius * 2, radius * 2), radius * 2)
-                surface.blit(glow, (sx - radius * 2, sy - radius * 2))
+            # Glow effect for active/target/hovered/bounce
+            if hovered or is_target or in_conn or in_bounce:
+                glow_radius = int(radius * 2.5)
+                glow = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                alpha = 70 if is_target else (45 if (in_conn or in_bounce) else 30)
+                pygame.draw.circle(glow, (*color, alpha), (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow, (sx - glow_radius, sy - glow_radius))
 
             pygame.draw.circle(surface, color, (sx, sy), radius)
 
@@ -173,7 +197,14 @@ class MapView:
             else:
                 label_color = TEXT_DIM
             txt = font_small.render(display_name, True, label_color)
-            surface.blit(txt, (sx + scale.w(14), sy - txt.get_height() // 2))
+            
+            # Label background for better contrast
+            tr = txt.get_rect(topleft=(sx + scale.w(14), sy - txt.get_height() // 2))
+            bg_surf = pygame.Surface((tr.w + 4, tr.h), pygame.SRCALPHA)
+            bg_surf.fill((10, 20, 30, 180))
+            surface.blit(bg_surf, (tr.x - 2, tr.y))
+            
+            surface.blit(txt, tr.topleft)
 
         # Tooltip
         if self._tooltip:
@@ -200,27 +231,41 @@ class MapView:
                 ty += 18
 
         # Legend
-        font_leg = get_font(scale.fs(14), light=True)
-        lx = scale.x(MAP_X + 10)
-        ly = scale.y(MAP_Y + MAP_H - 30)
-        txt = font_leg.render("Left-click: connect  Right-click: add bounce  |  ", True, TEXT_DIM)
-        surface.blit(txt, (lx, ly))
-        lx += txt.get_width()
-        pygame.draw.circle(surface, SUCCESS, (lx + 5, ly + 8), 5)
-        txt = font_leg.render("  Target  ", True, TEXT_DIM)
-        surface.blit(txt, (lx + 12, ly))
-        lx += txt.get_width() + 12
-        pygame.draw.circle(surface, (43, 255, 209), (lx + 5, ly + 8), 5)
-        txt = font_leg.render("  Bounce  ", True, TEXT_DIM)
-        surface.blit(txt, (lx + 12, ly))
-        lx += txt.get_width() + 12
-        pygame.draw.circle(surface, PRIMARY, (lx + 5, ly + 8), 5)
-        txt = font_leg.render("  Active  ", True, TEXT_DIM)
-        surface.blit(txt, (lx + 12, ly))
-        lx += txt.get_width() + 12
-        pygame.draw.circle(surface, SECONDARY, (lx + 5, ly + 8), 4)
-        txt = font_leg.render("  Known", True, TEXT_DIM)
-        surface.blit(txt, (lx + 12, ly))
+        font_leg = get_font(scale.fs(15), light=True)
+        lx = scale.x(MAP_X + 20)
+        ly = scale.y(MAP_Y + MAP_H - 40)
+        
+        # Background for legend (translucent with hacker frame)
+        leg_rect = scale.rect(MAP_X + 10, MAP_Y + MAP_H - 50, 700, 40)
+        leg_bg = pygame.Surface((leg_rect.w, leg_rect.h), pygame.SRCALPHA)
+        leg_bg.fill((10, 20, 30, 220))
+        surface.blit(leg_bg, leg_rect.topleft)
+        pygame.draw.rect(surface, (*SECONDARY, 150), leg_rect, 1)
+        # Corner accents for legend
+        pygame.draw.line(surface, SECONDARY, (leg_rect.x, leg_rect.y), (leg_rect.x+10, leg_rect.y), 2)
+        pygame.draw.line(surface, SECONDARY, (leg_rect.x, leg_rect.y), (leg_rect.x, leg_rect.y+10), 2)
+
+        txt = font_leg.render("MOUSE: LEFT CONNECT, RIGHT BOUNCE |", True, TEXT_DIM)
+        surface.blit(txt, (lx, ly + 4))
+        lx += txt.get_width() + 10
+        
+        # Legend items
+        items = [
+            (SUCCESS, "TARGET"),
+            ((43, 255, 209), "BOUNCE"),
+            (PRIMARY, "ACTIVE"),
+            (SECONDARY, "KNOWN")
+        ]
+        for color, label in items:
+            pygame.draw.circle(surface, color, (lx + scale.w(8), ly + scale.h(12)), scale.w(5))
+            # Glow for legend dots
+            glow = pygame.Surface((scale.w(16), scale.w(16)), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (*color, 100), (scale.w(8), scale.w(8)), scale.w(8))
+            surface.blit(glow, (lx, ly + scale.h(4)))
+            
+            txt = font_leg.render(label, True, TEXT_WHITE)
+            surface.blit(txt, (lx + scale.w(20), ly + scale.h(4)))
+            lx += txt.get_width() + scale.w(35)
 
         # Bounce route status
         if self.bounce_ips:

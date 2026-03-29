@@ -25,6 +25,55 @@ class Label:
         return rendered.get_height()
 
 
+class HackerPanel:
+    """A decorative panel with corner accents and optional title bar."""
+    def __init__(self, dx, dy, dw, dh, title="", color=SECONDARY):
+        self.dx, self.dy, self.dw, self.dh = dx, dy, dw, dh
+        self.title = title
+        self.color = color
+
+    def draw(self, surface, scale: Scale):
+        rect = scale.rect(self.dx, self.dy, self.dw, self.dh)
+        
+        # Translucent background
+        bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        bg.fill((*PANEL_BG, 200))
+        surface.blit(bg, rect.topleft)
+        
+        # Main border (very thin)
+        pygame.draw.rect(surface, (*self.color, 80), rect, 1)
+        
+        # Corner accents (thicker)
+        cl = scale.w(15) # corner length
+        cw = scale.w(2)  # corner width
+        # Top-left
+        pygame.draw.line(surface, self.color, (rect.x, rect.y), (rect.x + cl, rect.y), cw)
+        pygame.draw.line(surface, self.color, (rect.x, rect.y), (rect.x, rect.y + cl), cw)
+        # Top-right
+        pygame.draw.line(surface, self.color, (rect.right, rect.y), (rect.right - cl, rect.y), cw)
+        pygame.draw.line(surface, self.color, (rect.right, rect.y), (rect.right, rect.y + cl), cw)
+        # Bottom-left
+        pygame.draw.line(surface, self.color, (rect.x, rect.bottom), (rect.x + cl, rect.bottom), cw)
+        pygame.draw.line(surface, self.color, (rect.x, rect.bottom), (rect.x, rect.bottom - cl), cw)
+        # Bottom-right
+        pygame.draw.line(surface, self.color, (rect.right, rect.bottom), (rect.right - cl, rect.bottom), cw)
+        pygame.draw.line(surface, self.color, (rect.right, rect.bottom), (rect.right, rect.bottom - cl), cw)
+
+        # Title bar
+        if self.title:
+            font = get_font(scale.fs(16))
+            txt = font.render(self.title.upper(), True, self.color)
+            # Title background
+            tw = txt.get_width() + 20
+            th = scale.h(24)
+            tr = pygame.Rect(rect.x, rect.y - th, tw, th)
+            # Angled title tab
+            points = [(tr.x, tr.bottom), (tr.x, tr.y), (tr.right - 10, tr.y), (tr.right, tr.bottom)]
+            pygame.draw.polygon(surface, PANEL_BG, points)
+            pygame.draw.lines(surface, self.color, False, points, 1)
+            surface.blit(txt, (tr.x + 10, tr.y + (th - txt.get_height()) // 2))
+
+
 class Button:
     def __init__(self, text, dx, dy, dw, dh, callback=None, color=PRIMARY, size=20):
         self.text = text
@@ -45,14 +94,35 @@ class Button:
         rect = self.get_rect(scale)
         color = self.color if self.enabled else TEXT_DIM
 
-        if self.hovered and self.enabled:
-            pygame.draw.rect(surface, color, rect, 0, border_radius=3)
+        if self.enabled:
+            # Subtle resting fill (12 alpha)
+            rest_fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            rest_fill.fill((*color, 15))
+            surface.blit(rest_fill, rect.topleft)
+            
+            # Complex border with corner tabs
+            pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1)
+            cw, ch = scale.w(8), scale.h(8)
+            # Corners
+            pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), 2)
+            pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x, rect.y + ch), 2)
+            pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), 2)
+            pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), 2)
+
+            if self.hovered:
+                # Brighter hover glow (50 alpha)
+                fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                fill.fill((*color, 60))
+                surface.blit(fill, rect.topleft)
+                pygame.draw.rect(surface, color, rect, 1)
+
             font = get_font(scale.fs(self.size))
-            txt = font.render(self.text, True, (0, 0, 0))
+            txt_color = color if self.hovered else TEXT_WHITE
+            txt = font.render(self.text, True, txt_color)
         else:
-            pygame.draw.rect(surface, color, rect, 1, border_radius=3)
+            pygame.draw.rect(surface, TEXT_DIM, rect, 1)
             font = get_font(scale.fs(self.size))
-            txt = font.render(self.text, True, color)
+            txt = font.render(self.text, True, TEXT_DIM)
 
         tx = rect.x + (rect.w - txt.get_width()) // 2
         ty = rect.y + (rect.h - txt.get_height()) // 2
@@ -153,9 +223,9 @@ class ScrollableList:
 
     def draw(self, surface, scale: Scale, render_item=None):
         rect = self.get_rect(scale)
+        # Background
         pygame.draw.rect(surface, PANEL_BG, rect)
-        pygame.draw.rect(surface, SECONDARY, rect, 1)
-
+        
         ih = scale.h(self.item_height)
         vis = self.visible_count(scale)
 
@@ -168,7 +238,8 @@ class ScrollableList:
                 break
             item = self.items[idx]
             iy = rect.y + i * ih
-            ir = pygame.Rect(rect.x, iy, rect.w, ih)
+            # Inset row slightly for border
+            ir = pygame.Rect(rect.x + scale.w(2), iy + scale.h(2), rect.w - scale.w(24), ih - scale.h(4))
 
             # Row background
             if idx == self.selected:
@@ -177,22 +248,46 @@ class ScrollableList:
                 pygame.draw.rect(surface, ROW_HOVER, ir)
             elif idx % 2 == 1:
                 pygame.draw.rect(surface, ROW_ALT, ir)
+            
+            # Row border (hacker style)
+            pygame.draw.rect(surface, (*SECONDARY, 80), ir, 1)
+
+            # Diamond icon
+            icon_size = scale.w(8)
+            ix = ir.x + scale.w(12)
+            iy_center = ir.y + ir.h // 2
+            points = [(ix, iy_center - icon_size // 2), (ix + icon_size // 2, iy_center),
+                      (ix, iy_center + icon_size // 2), (ix - icon_size // 2, iy_center)]
+            icon_color = PRIMARY if idx == self.selected else (SECONDARY if idx == self.hovered else TEXT_DIM)
+            pygame.draw.polygon(surface, icon_color, points)
 
             if render_item:
-                render_item(surface, scale, item, ir, idx == self.selected)
+                # Adjust rect for render_item to skip the icon space
+                item_rect = pygame.Rect(ir.x + scale.w(24), ir.y, ir.w - scale.w(24), ir.h)
+                render_item(surface, scale, item, item_rect, idx == self.selected)
             else:
                 font = get_font(scale.fs(18), light=True)
                 txt = font.render(str(item), True, TEXT_WHITE)
-                surface.blit(txt, (ir.x + 8, ir.y + (ih - txt.get_height()) // 2))
+                surface.blit(txt, (ir.x + scale.w(30), ir.y + (ir.h - txt.get_height()) // 2))
 
         surface.set_clip(clip)
 
+        # Border around the whole list
+        pygame.draw.rect(surface, SECONDARY, rect, 1)
+
         # Scrollbar
         if len(self.items) > vis:
-            sb_h = max(20, rect.h * vis // len(self.items))
-            sb_y = rect.y + int(rect.h * self.scroll / len(self.items))
-            sb_rect = pygame.Rect(rect.x + rect.w - 6, sb_y, 4, sb_h)
-            pygame.draw.rect(surface, SECONDARY, sb_rect, border_radius=2)
+            sb_w = 6
+            sb_rect = pygame.Rect(rect.x + rect.w - 12, rect.y + 4, sb_w, rect.h - 8)
+            # Track
+            track = pygame.Surface((sb_rect.w, sb_rect.h), pygame.SRCALPHA)
+            track.fill((*SECONDARY, 40))
+            surface.blit(track, sb_rect.topleft)
+            # Thumb
+            thumb_h = max(20, sb_rect.h * vis // len(self.items))
+            thumb_y = sb_rect.y + int((sb_rect.h - thumb_h) * self.scroll / max(len(self.items) - vis, 1))
+            thumb_rect = pygame.Rect(sb_rect.x, thumb_y, sb_w, thumb_h)
+            pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=1)
 
     def handle_event(self, event, scale: Scale) -> bool:
         rect = self.get_rect(scale)
@@ -219,20 +314,49 @@ class ScrollableList:
                 elif event.button == 5:  # scroll down
                     vis = self.visible_count(scale)
                     self.scroll = min(max(0, len(self.items) - vis), self.scroll + 1)
+        elif event.type == pygame.MOUSEWHEEL:
+            if rect.collidepoint(pygame.mouse.get_pos()):
+                vis = self.visible_count(scale)
+                self.scroll = max(0, min(self.scroll - event.y, max(0, len(self.items) - vis)))
+                return True
         return False
 
 
 class ProgressBar:
-    def __init__(self, dx, dy, dw, dh, color=PRIMARY, bg=PANEL_BG):
+    def __init__(self, dx, dy, dw, dh, color=PRIMARY, bg=PANEL_BG, segments=False):
         self.dx, self.dy, self.dw, self.dh = dx, dy, dw, dh
         self.color = color
         self.bg = bg
         self.value = 0.0  # 0-1
+        self.segments = segments
 
     def draw(self, surface, scale: Scale):
         rect = scale.rect(self.dx, self.dy, self.dw, self.dh)
+        
+        # Background track with subtle depth
         pygame.draw.rect(surface, self.bg, rect)
-        fill_w = int(rect.w * max(0, min(1, self.value)))
+        track_fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+        track_fill.fill((*SECONDARY, 20))
+        surface.blit(track_fill, rect.topleft)
+        
+        fill_pct = max(0.0, min(1.0, self.value))
+        fill_w = int(rect.w * fill_pct)
+        
         if fill_w > 0:
-            pygame.draw.rect(surface, self.color, pygame.Rect(rect.x, rect.y, fill_w, rect.h))
-        pygame.draw.rect(surface, SECONDARY, rect, 1)
+            # Main fill with slight transparency for a neon look
+            fill_surf = pygame.Surface((fill_w, rect.h), pygame.SRCALPHA)
+            fill_surf.fill((*self.color, 160))
+            surface.blit(fill_surf, rect.topleft)
+            
+            # Subtle top-edge highlight for "glass" effect
+            pygame.draw.line(surface, self.color, (rect.x, rect.y + 1), (rect.x + fill_w - 1, rect.y + 1), 1)
+
+            # Segments
+            if self.segments:
+                seg_w = scale.w(12)
+                gap = scale.w(2)
+                for sx in range(seg_w, fill_w, seg_w + gap):
+                    pygame.draw.line(surface, self.bg, (rect.x + sx, rect.y), (rect.x + sx, rect.y + rect.h), max(1, gap))
+
+        # Border
+        pygame.draw.rect(surface, SECONDARY, rect, 1, border_radius=1)

@@ -142,104 +142,111 @@ class AppSidebar:
         f_icon = get_font(scale.fs(16))
         f_status = get_font(scale.fs(10), light=True)
 
-        # Sidebar background
+        # Sidebar panel
         n_slots = max(len(tools), len(self.running) + 1)
-        sidebar_h = min(n_slots * SLOT_H + 30, 600)
+        sidebar_h = min(n_slots * SLOT_H + 35, 650)
+        from ui.widgets import HackerPanel
+        HackerPanel(SIDEBAR_X, SIDEBAR_Y, SIDEBAR_W, sidebar_h, title="Software").draw(surface, scale)
+        
         sidebar_rect = scale.rect(SIDEBAR_X, SIDEBAR_Y, SIDEBAR_W, sidebar_h)
-        bg = pygame.Surface((sidebar_rect.w, sidebar_rect.h), pygame.SRCALPHA)
-        bg.fill((11, 21, 32, 210))
-        surface.blit(bg, sidebar_rect.topleft)
-        pygame.draw.rect(surface, SECONDARY, sidebar_rect, 1, border_radius=3)
-
-        # Header
-        txt = f_title.render("S O F T W A R E", True, PRIMARY)
-        surface.blit(txt, (sidebar_rect.x + 8, sidebar_rect.y + 4))
-        sy = sidebar_rect.y + 20
+        sy = sidebar_rect.y + scale.h(4) # HackerPanel handles title height
 
         # Running apps first
         for app in self.running:
             if not app.active:
                 continue
-            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, SLOT_H - 4)
+            
+            # Use absolute scaled coordinates for the slot
+            slot_rect = pygame.Rect(scale.x(SIDEBAR_X + 4), sy, scale.w(SIDEBAR_W - 8), scale.h(SLOT_H - 4))
             hovered = slot_rect.collidepoint(mouse)
 
-            # Background
+            # Background & Glow
             slot_bg = pygame.Surface((slot_rect.w, slot_rect.h), pygame.SRCALPHA)
-            slot_bg.fill((*app.color, 25))
+            slot_bg.fill((*app.color, 40 if hovered else 25))
             surface.blit(slot_bg, slot_rect.topleft)
-            pygame.draw.rect(surface, app.color, slot_rect, 1, border_radius=2)
+            pygame.draw.rect(surface, app.color, slot_rect, 1)
 
-            # Icon
-            txt = f_icon.render(app.icon, True, app.color)
-            surface.blit(txt, (slot_rect.x + 6, slot_rect.y + 4))
+            # Active diamond (pulsing)
+            pulse = (time.time() * 3) % 1.0
+            dot_x = slot_rect.x + scale.w(14)
+            dot_y = slot_rect.y + scale.h(14)
+            ds = scale.w(6)
+            pts = [(dot_x, dot_y - ds), (dot_x + ds, dot_y), (dot_x, dot_y + ds), (dot_x - ds, dot_y)]
+            pygame.draw.polygon(surface, app.color, pts)
+            if pulse < 0.5:
+                pygame.draw.polygon(surface, TEXT_WHITE, pts, 1)
+
+            # Icon text
+            txt = f_icon.render(app.icon, True, TEXT_WHITE if hovered else app.color)
+            surface.blit(txt, (slot_rect.x + scale.w(28), slot_rect.y + scale.h(4)))
 
             # Title
-            txt = f_title.render(app.title[:16], True, TEXT_WHITE)
-            surface.blit(txt, (slot_rect.x + 36, slot_rect.y + 4))
+            txt = f_title.render(app.title[:16].upper(), True, TEXT_WHITE)
+            surface.blit(txt, (slot_rect.x + scale.w(58), slot_rect.y + scale.h(4)))
 
             # Status
             if app.waiting_target:
-                txt = f_status.render("Click target...", True, app.color)
+                txt = f_status.render("WAITING TARGET", True, app.color)
             elif app.duration > 0:
                 elapsed = time.time() - app.start_time
                 app.progress = min(1.0, elapsed / app.duration)
                 pct = int(app.progress * 100)
-                txt = f_status.render(f"Running {pct}%", True, app.color)
+                txt = f_status.render(f"RUNNING {pct}%", True, app.color)
                 # Progress bar
-                bar_y = slot_rect.y + slot_rect.h - 6
-                bar_w = slot_rect.w - 12
-                pygame.draw.rect(surface, (20, 35, 50),
-                                 (slot_rect.x + 6, bar_y, bar_w, 4))
-                pygame.draw.rect(surface, app.color,
-                                 (slot_rect.x + 6, bar_y, int(bar_w * app.progress), 4))
+                bar_y = slot_rect.y + slot_rect.h - scale.h(6)
+                bar_w = slot_rect.w - scale.w(12)
+                pygame.draw.rect(surface, (20, 35, 50), (slot_rect.x + scale.w(6), bar_y, bar_w, scale.h(4)))
+                pygame.draw.rect(surface, app.color, (slot_rect.x + scale.w(6), bar_y, int(bar_w * app.progress), scale.h(4)))
             else:
-                txt = f_status.render("Active", True, SUCCESS)
-            surface.blit(txt, (slot_rect.x + 36, slot_rect.y + 18))
+                txt = f_status.render("ACTIVE", True, SUCCESS)
+            surface.blit(txt, (slot_rect.x + scale.w(58), slot_rect.y + scale.h(18)))
 
             # Stop button (X)
             if hovered:
-                stop_rect = pygame.Rect(slot_rect.right - 16, slot_rect.y + 2, 14, 14)
+                stop_rect = pygame.Rect(slot_rect.right - scale.w(18), slot_rect.y + scale.h(4), scale.w(14), scale.h(14))
+                pygame.draw.rect(surface, ALERT, stop_rect, 1)
                 txt = f_status.render("X", True, ALERT)
-                surface.blit(txt, (stop_rect.x + 2, stop_rect.y))
+                surface.blit(txt, (stop_rect.x + scale.w(3), stop_rect.y + scale.h(1)))
 
-            sy += SLOT_H
+            sy += scale.h(SLOT_H)
 
         # Separator
         if self.running:
-            pygame.draw.line(surface, SECONDARY,
-                             (sidebar_rect.x + 8, sy + 2),
-                             (sidebar_rect.right - 8, sy + 2), 1)
-            sy += 8
+            pygame.draw.line(surface, (*SECONDARY, 100), (sidebar_rect.x + 8, sy + 2), (sidebar_rect.right - 8, sy + 2), 1)
+            sy += scale.h(8)
 
         # Available (not running) tools
         for title, version, tool_info in tools:
             if self.is_running(title):
                 continue
-            if sy + SLOT_H > sidebar_rect.bottom:
+            if sy + scale.h(SLOT_H) > sidebar_rect.bottom:
                 break
 
-            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, SLOT_H - 4)
+            slot_rect = pygame.Rect(scale.x(SIDEBAR_X + 4), sy, scale.w(SIDEBAR_W - 8), scale.h(SLOT_H - 4))
             hovered = slot_rect.collidepoint(mouse)
 
             if hovered:
                 slot_bg = pygame.Surface((slot_rect.w, slot_rect.h), pygame.SRCALPHA)
-                slot_bg.fill((*PRIMARY, 15))
+                slot_bg.fill((*PRIMARY, 30))
                 surface.blit(slot_bg, slot_rect.topleft)
+                pygame.draw.rect(surface, (*PRIMARY, 100), slot_rect, 1)
+            else:
+                pygame.draw.rect(surface, (*SECONDARY, 60), slot_rect, 1)
 
             color = tool_info.get("color", SECONDARY)
             # Icon
             txt = f_icon.render(tool_info.get("icon", "??"), True, color if hovered else TEXT_DIM)
-            surface.blit(txt, (slot_rect.x + 6, slot_rect.y + 4))
+            surface.blit(txt, (slot_rect.x + scale.w(28), slot_rect.y + scale.h(4)))
 
             # Title
-            txt = f_title.render(title[:16], True, TEXT_WHITE if hovered else TEXT_DIM)
-            surface.blit(txt, (slot_rect.x + 36, slot_rect.y + 4))
+            txt = f_title.render(title[:16].upper(), True, TEXT_WHITE if hovered else TEXT_DIM)
+            surface.blit(txt, (slot_rect.x + scale.w(58), slot_rect.y + scale.h(4)))
 
             # Version
             txt = f_status.render(f"v{version}", True, TEXT_DIM)
-            surface.blit(txt, (slot_rect.x + 36, slot_rect.y + 18))
+            surface.blit(txt, (slot_rect.x + scale.w(58), slot_rect.y + scale.h(18)))
 
-            sy += SLOT_H
+            sy += scale.h(SLOT_H)
 
     def handle_event(self, event, scale, state):
         if not self.visible:
@@ -257,35 +264,35 @@ class AppSidebar:
         if not sidebar_rect.collidepoint(mouse):
             return False
 
-        sy = sidebar_rect.y + 20
+        sy = sidebar_rect.y + scale.h(20)
 
         # Check running apps (stop button)
         for app in list(self.running):
             if not app.active:
                 continue
-            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, SLOT_H - 4)
+            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, scale.h(SLOT_H - 4))
             if slot_rect.collidepoint(mouse):
                 # Stop button area (top-right)
-                stop_rect = pygame.Rect(slot_rect.right - 16, slot_rect.y + 2, 14, 14)
+                stop_rect = pygame.Rect(slot_rect.right - scale.w(16), slot_rect.y + scale.h(2), scale.w(14), scale.h(14))
                 if stop_rect.collidepoint(mouse):
                     self.stop_tool(app.title)
                     audio.play_sfx("popup")
                     return True
-            sy += SLOT_H
+            sy += scale.h(SLOT_H)
 
         if self.running:
-            sy += 8
+            sy += scale.h(8)
 
         # Check available tools
         for title, version, tool_info in tools:
             if self.is_running(title):
                 continue
-            if sy + SLOT_H > sidebar_rect.bottom:
+            if sy + scale.h(SLOT_H) > sidebar_rect.bottom:
                 break
-            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, SLOT_H - 4)
+            slot_rect = pygame.Rect(sidebar_rect.x + 4, sy, sidebar_rect.w - 8, scale.h(SLOT_H - 4))
             if slot_rect.collidepoint(mouse):
                 self.run_tool(title, version, tool_info)
                 return True
-            sy += SLOT_H
+            sy += scale.h(SLOT_H)
 
         return True  # consume click inside sidebar

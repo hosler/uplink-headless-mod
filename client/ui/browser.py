@@ -142,10 +142,12 @@ class BrowserView:
         txt = f_sub.render("Your saved links", True, SECONDARY)
         surface.blit(txt, (scale.x(SCR_X + 10), scale.y(CONTENT_Y + 48)))
 
-        # Separator
+        # Separator (decorative)
         sy = scale.y(CONTENT_Y + 85)
-        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X), sy),
-                         (scale.x(SCR_X + SCR_W), sy), max(1, scale.h(2)))
+        pygame.draw.line(surface, (*SECONDARY, 150), (scale.x(SCR_X), sy),
+                         (scale.x(SCR_X + SCR_W), sy), 1)
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X), sy-4), (scale.x(SCR_X), sy+4), 2)
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X + SCR_W), sy-4), (scale.x(SCR_X + SCR_W), sy+4), 2)
 
         # Link rows
         links = state.links
@@ -160,31 +162,47 @@ class BrowserView:
             rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
             hovered = rect.collidepoint(mouse)
 
+            # Row background
+            fill_alpha = 40 if hovered else 15
+            fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            fill.fill((*PRIMARY, fill_alpha))
+            surface.blit(fill, rect.topleft)
+            
+            # Row border
+            pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1)
             if hovered:
-                glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                glow.fill((*PRIMARY, 25))
-                surface.blit(glow, rect.topleft)
-                pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=3)
+                pygame.draw.rect(surface, PRIMARY, rect, 1)
 
-            # Dot
-            dot_x = scale.x(SCR_X + 20)
+            # Diamond icon
+            dot_x = scale.x(SCR_X + 24)
             dot_y = rect.y + rect.h // 2
-            pygame.draw.circle(surface, PRIMARY if hovered else SECONDARY, (dot_x, dot_y), scale.w(5))
+            ds = scale.w(8)
+            pts = [(dot_x, dot_y - ds // 2), (dot_x + ds // 2, dot_y),
+                   (dot_x, dot_y + ds // 2), (dot_x - ds // 2, dot_y)]
+            color = PRIMARY if hovered else SECONDARY
+            
+            if hovered:
+                # Diamond glow
+                glow = pygame.Surface((ds * 3, ds * 3), pygame.SRCALPHA)
+                pygame.draw.polygon(glow, (*PRIMARY, 120), [(ds*1.5, ds*0.5), (ds*2.5, ds*1.5), (ds*1.5, ds*2.5), (ds*0.5, ds*1.5)])
+                surface.blit(glow, (dot_x - ds * 1.5, dot_y - ds * 1.5))
+                
+            pygame.draw.polygon(surface, color, pts)
 
             # Name
             name = link.get("name", "Unknown")
             txt = f_name.render(name, True, TEXT_WHITE if hovered else PRIMARY)
-            surface.blit(txt, (scale.x(SCR_X + 40), rect.y + scale.h(5)))
+            surface.blit(txt, (scale.x(SCR_X + 50), rect.y + scale.h(8)))
 
             # IP
             ip = link.get("ip", "")
             txt = f_ip.render(ip, True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 42), rect.y + scale.h(30)))
+            surface.blit(txt, (scale.x(SCR_X + 52), rect.y + scale.h(34)))
 
             # Arrow
             if hovered:
                 txt = f_name.render(">", True, PRIMARY)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 40), rect.y + scale.h(8)))
+                surface.blit(txt, (scale.x(SCR_X + SCR_W - 40), rect.y + scale.h(12)))
 
         # Hint at bottom
         f_hint = get_font(scale.fs(14), light=True)
@@ -217,38 +235,45 @@ class BrowserView:
         progress = min(1.0, elapsed / 1.5)
 
         f_label = get_font(scale.fs(22), light=True)
-        f_ip = get_font(scale.fs(40))
+        f_ip = get_font(scale.fs(44))
         f_name = get_font(scale.fs(20), light=True)
+        f_tech = get_font(scale.fs(12), light=True)
 
         cx = DESIGN_W // 2
-        cy = DESIGN_H // 2 - 60
+        cy = DESIGN_H // 2 - 100
+        
+        # Center panel for connection
+        pw, ph = 600, 300
+        from ui.widgets import HackerPanel
+        HackerPanel(cx - pw//2, cy, pw, ph, title="Establishing Link").draw(surface, scale)
 
         txt = f_label.render("Connecting to...", True, TEXT_DIM)
-        surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy)))
-
-        txt = f_ip.render(self._connect_ip, True, PRIMARY)
         surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 40)))
 
-        # Progress bar
-        bar_w = 400
-        bar_h = 12
-        bx = scale.x(cx - bar_w // 2)
-        by = scale.y(cy + 100)
-        bw = scale.w(bar_w)
-        bh = scale.h(bar_h)
-        pygame.draw.rect(surface, PANEL_BG, (bx, by, bw, bh))
-        fill = int(bw * progress)
-        if fill > 0:
-            pygame.draw.rect(surface, PRIMARY, (bx, by, fill, bh))
-        pygame.draw.rect(surface, SECONDARY, (bx, by, bw, bh), 1)
+        txt = f_ip.render(self._connect_ip, True, PRIMARY)
+        surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 85)))
 
-        # Percentage
-        pct = f_label.render(f"{int(progress * 100)}%", True, TEXT_DIM)
-        surface.blit(pct, (bx + bw + 10, by - 3))
+        # Progress bar (segmented)
+        bar_w = 400
+        bar_h = 24
+        bx = cx - bar_w // 2
+        by = cy + 160
+        from ui.widgets import ProgressBar
+        pb = ProgressBar(bx, by, bar_w, bar_h, segments=True)
+        pb.value = progress
+        pb.draw(surface, scale)
+
+        # Tech noise
+        noise_y = cy + 220
+        import random
+        for i in range(3):
+            line = "".join(random.choices("0123456789ABCDEF", k=24))
+            txt = f_tech.render(f"AUTH_STREAM_{i}: {line}", True, (30, 60, 90))
+            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(noise_y + i * 16)))
 
         if self._connect_name:
-            txt = f_name.render(self._connect_name, True, TEXT_DIM)
-            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 140)))
+            txt = f_name.render(self._connect_name.upper(), True, TEXT_DIM)
+            surface.blit(txt, (scale.x(cx) - txt.get_width() // 2, scale.y(cy + 130)))
 
     # ================================================================
     # SCREEN RENDERING (connected)
@@ -365,10 +390,12 @@ class BrowserView:
             y = cy + i * 50
             rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 44)
             hovered = rect.collidepoint(mouse)
-            if hovered:
-                glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                glow.fill((*PRIMARY, 40))
-                surface.blit(glow, rect.topleft)
+
+            # Resting/Hover fill
+            fill_alpha = 25 if hovered else 12
+            fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            fill.fill((*PRIMARY, fill_alpha))
+            surface.blit(fill, rect.topleft)
             pygame.draw.rect(surface, PRIMARY if hovered else SECONDARY, rect, 1, border_radius=3)
             # Arrow pointer on left (signature Uplink style)
             arr = f_btn.render(">", True, PRIMARY if hovered else SECONDARY)

@@ -14,14 +14,36 @@ ROW_H = 32
 
 
 def _draw_panel(surface, scale, x, y, w, h, title=None):
-    """Draw a dark panel with border and optional title."""
+    """Draw a dark panel with hacker corner accents and optional title."""
     rect = scale.rect(x, y, w, h)
-    pygame.draw.rect(surface, PANEL_BG, rect)
-    pygame.draw.rect(surface, SECONDARY, rect, max(1, scale.h(1)))
+    # Translucent background
+    bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+    bg.fill((*PANEL_BG, 200))
+    surface.blit(bg, rect.topleft)
+    
+    pygame.draw.rect(surface, (*SECONDARY, 80), rect, 1)
+    
+    # Corner accents
+    cl = scale.w(12)
+    cw = scale.w(2)
+    # TL
+    pygame.draw.line(surface, SECONDARY, (rect.x, rect.y), (rect.x + cl, rect.y), cw)
+    pygame.draw.line(surface, SECONDARY, (rect.x, rect.y), (rect.x, rect.y + cl), cw)
+    # BR
+    pygame.draw.line(surface, SECONDARY, (rect.right, rect.bottom), (rect.right - cl, rect.bottom), cw)
+    pygame.draw.line(surface, SECONDARY, (rect.right, rect.bottom), (rect.right, rect.bottom - cl), cw)
+
     if title:
-        f = get_font(scale.fs(14), light=True)
-        txt = f.render(title, True, PRIMARY)
-        surface.blit(txt, (rect.x + scale.w(8), rect.y + scale.h(4)))
+        f = get_font(scale.fs(14))
+        txt = f.render(title.upper(), True, PRIMARY)
+        # Title tab
+        tw = txt.get_width() + 16
+        th = scale.h(20)
+        tr = pygame.Rect(rect.x, rect.y - th, tw, th)
+        points = [(tr.x, tr.bottom), (tr.x, tr.y), (tr.right - 8, tr.y), (tr.right, tr.bottom)]
+        pygame.draw.polygon(surface, PANEL_BG, points)
+        pygame.draw.lines(surface, SECONDARY, False, points, 1)
+        surface.blit(txt, (rect.x + scale.w(8), rect.y - th + scale.h(2)))
     return rect
 
 
@@ -29,58 +51,113 @@ def _draw_header_row(surface, scale, cy, columns):
     """Draw column headers and separator line. Returns y after header."""
     f = get_font(scale.fs(16))
     for label, col_x in columns:
-        txt = f.render(label, True, TEXT_WHITE)
-        surface.blit(txt, (scale.x(col_x), scale.y(cy)))
-    cy += 22
-    pygame.draw.line(surface, SECONDARY,
-                     (scale.x(SCR_X), scale.y(cy)),
-                     (scale.x(SCR_X + SCR_W), scale.y(cy)),
-                     max(1, scale.h(1)))
-    return cy + 10
+        txt = f.render(label.upper(), True, PRIMARY)
+        surface.blit(txt, (scale.x(col_x + 10), scale.y(cy)))
+    cy += 30 # Increased padding
+    # Decorative separator
+    line_x = scale.x(SCR_X)
+    line_w = scale.w(SCR_W)
+    line_y = scale.y(cy)
+    
+    # Glow effect for separator
+    glow = pygame.Surface((line_w, 4), pygame.SRCALPHA)
+    pygame.draw.line(glow, (*SECONDARY, 40), (0, 2), (line_w, 2), 4)
+    surface.blit(glow, (line_x, line_y - 2))
+    
+    pygame.draw.line(surface, (*SECONDARY, 150), (line_x, line_y), (line_x + line_w, line_y), 1)
+    # Ends
+    pygame.draw.line(surface, SECONDARY, (line_x, line_y - 4), (line_x, line_y + 4), 2)
+    pygame.draw.line(surface, SECONDARY, (line_x + line_w, line_y - 4), (line_x + line_w, line_y + 4), 2)
+    return cy + 14 # Extra space below line
 
 
 def _draw_data_row(surface, scale, y, hovered, selected=False, alt=False):
-    """Draw row background — always zebra-stripe, then layer hover/selected on top."""
-    row_rect = scale.rect(SCR_X, y, SCR_W, ROW_H - 2)
-    # Always apply zebra stripe on odd rows
-    if alt:
-        a = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-        a.fill((180, 210, 255, 20))
-        surface.blit(a, row_rect.topleft)
-    # Layer interaction states on top
+    """Draw row with hacker style: borders, diamond icons, interaction states."""
+    row_rect = scale.rect(SCR_X + 2, y + 2, SCR_W - 4, ROW_H - 4)
+    
+    # Base background
     if selected:
-        sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-        sel.fill((*PRIMARY, 35))
-        surface.blit(sel, row_rect.topleft)
+        s = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+        s.fill((*ROW_SELECTED, 180))
+        surface.blit(s, row_rect.topleft)
     elif hovered:
-        sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-        sel.fill((*PRIMARY, 15))
-        surface.blit(sel, row_rect.topleft)
+        s = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+        s.fill((*ROW_HOVER, 140))
+        surface.blit(s, row_rect.topleft)
+    elif alt:
+        s = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+        s.fill((*ROW_ALT, 100))
+        surface.blit(s, row_rect.topleft)
+    
+    # Row border
+    pygame.draw.rect(surface, (*SECONDARY, 60), row_rect, 1)
+    
+    # Diamond icon
+    icon_size = scale.w(8)
+    ix = row_rect.x + scale.w(12)
+    iy_center = row_rect.y + row_rect.h // 2
+    points = [(ix, iy_center - icon_size // 2), (ix + icon_size // 2, iy_center),
+              (ix, iy_center + icon_size // 2), (ix - icon_size // 2, iy_center)]
+    icon_color = PRIMARY if selected else (SECONDARY if hovered else TEXT_DIM)
+    pygame.draw.polygon(surface, icon_color, points)
+    
     return row_rect
 
 
 def _draw_button(surface, scale, x, y, w, h, label, mouse, enabled=True):
-    """Draw a styled button with cyan border. Returns the rect for click detection."""
+    """Draw a high-fidelity tech button."""
     btn_rect = scale.rect(x, y, w, h)
     btn_hovered = btn_rect.collidepoint(mouse) and enabled
     f_btn = get_font(scale.fs(13))
+    
+    color = PRIMARY if enabled else TEXT_DIM
+    
     if enabled:
-        # Always show cyan border
-        pygame.draw.rect(surface, SECONDARY, btn_rect, 1, border_radius=3)
+        # Resting state: subtle fill
+        rest_fill = pygame.Surface((btn_rect.w, btn_rect.h), pygame.SRCALPHA)
+        rest_fill.fill((*color, 20))
+        surface.blit(rest_fill, btn_rect.topleft)
+        
+        # Border with corner tabs
+        pygame.draw.rect(surface, (*SECONDARY, 120), btn_rect, 1)
+        cw, ch = scale.w(6), scale.h(6)
+        pygame.draw.line(surface, color, (btn_rect.x, btn_rect.y), (btn_rect.x + cw, btn_rect.y), 2)
+        pygame.draw.line(surface, color, (btn_rect.x, btn_rect.y), (btn_rect.x, btn_rect.y + ch), 2)
+        pygame.draw.line(surface, color, (btn_rect.right-1, btn_rect.bottom-1), (btn_rect.right - cw, btn_rect.bottom-1), 2)
+        pygame.draw.line(surface, color, (btn_rect.right-1, btn_rect.bottom-1), (btn_rect.right-1, btn_rect.bottom - ch), 2)
+        
         if btn_hovered:
-            # Subtle cyan fill on hover
             fill = pygame.Surface((btn_rect.w, btn_rect.h), pygame.SRCALPHA)
-            fill.fill((*PRIMARY, 40))
+            fill.fill((*color, 60))
             surface.blit(fill, btn_rect.topleft)
-            pygame.draw.rect(surface, PRIMARY, btn_rect, 1, border_radius=3)
-        txt = f_btn.render(label, True, PRIMARY if btn_hovered else SECONDARY)
+            pygame.draw.rect(surface, color, btn_rect, 1)
+            
+        txt_color = color if btn_hovered else TEXT_WHITE
+        txt = f_btn.render(label, True, txt_color)
     else:
-        pygame.draw.rect(surface, TEXT_DIM, btn_rect, 1, border_radius=3)
+        pygame.draw.rect(surface, TEXT_DIM, btn_rect, 1)
         txt = f_btn.render(label, True, TEXT_DIM)
+        
     tx = btn_rect.x + (btn_rect.w - txt.get_width()) // 2
     ty = btn_rect.y + (btn_rect.h - txt.get_height()) // 2
     surface.blit(txt, (tx, ty))
     return btn_rect
+
+
+def _draw_scrollbar(surface, scale, x, y, h, scroll, total, visible):
+    """Draw a thin vertical scrollbar. x/y/h in design coords."""
+    if total <= visible:
+        return
+    bar_rect = scale.rect(x, y, 4, h)
+    # Track
+    track = pygame.Surface((bar_rect.w, bar_rect.h), pygame.SRCALPHA)
+    track.fill((*SECONDARY, 30))
+    surface.blit(track, bar_rect.topleft)
+    # Thumb
+    thumb_h = max(scale.h(20), int(bar_rect.h * visible / total))
+    thumb_y = bar_rect.y + int((bar_rect.h - thumb_h) * scroll / max(total - visible, 1))
+    thumb_rect = pygame.Rect(bar_rect.x, thumb_y, bar_rect.w, thumb_h)
+    pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=2)
 
 
 def _draw_empty_state(surface, scale, cy, message, submessage=None):
@@ -90,7 +167,7 @@ def _draw_empty_state(surface, scale, cy, message, submessage=None):
     surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
     if submessage:
         f_sm = get_font(scale.fs(14), light=True)
-        txt = f_sm.render(submessage, True, (8, 42, 78))
+        txt = f_sm.render(submessage, True, TEXT_DIM)
         surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy + 28)))
 
 
@@ -173,11 +250,12 @@ class EmailView:
             txt = f_subj.render(subject, True, color)
             surface.blit(txt, (scale.x(SCR_X + 180), scale.y(y + 7)))
 
-        # Scroll indicator
+        # Scroll indicator + scrollbar
         if len(msgs) > max_vis:
             f_sm = get_font(scale.fs(13), light=True)
             txt = f_sm.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(msgs))} of {len(msgs)}", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
+            _draw_scrollbar(surface, scale, SCR_X + list_w - 8, cy, max_vis * ROW_H, self.scroll, len(msgs), max_vis)
 
         # Right panel: message body
         body_x = SCR_X + list_w + 30
@@ -435,13 +513,30 @@ class GatewayView:
         bar_w = 600
         bar_h = 18
         bar_rect = scale.rect(SCR_X + 10, cy, bar_w, bar_h)
-        pygame.draw.rect(surface, (20, 35, 50), bar_rect)
+        
+        # Background track
+        pygame.draw.rect(surface, PANEL_BG, bar_rect)
+        track_fill = pygame.Surface((bar_rect.w, bar_rect.h), pygame.SRCALPHA)
+        track_fill.fill((*SECONDARY, 20))
+        surface.blit(track_fill, bar_rect.topleft)
+        
         if mem_total > 0:
             fill_pct = min(1.0, mem_used / mem_total)
             fill_color = ALERT if fill_pct > 0.9 else (SUCCESS if fill_pct < 0.7 else (255, 200, 50))
-            fill_rect = scale.rect(SCR_X + 10, cy, int(bar_w * fill_pct), bar_h)
-            pygame.draw.rect(surface, fill_color, fill_rect)
-        pygame.draw.rect(surface, SECONDARY, bar_rect, 1)
+            fill_w = int(bar_rect.w * fill_pct)
+            if fill_w > 0:
+                # Main fill
+                fill_surf = pygame.Surface((fill_w, bar_rect.h), pygame.SRCALPHA)
+                fill_surf.fill((*fill_color, 160))
+                surface.blit(fill_surf, bar_rect.topleft)
+                # Segments
+                seg_w = scale.w(12)
+                gap = scale.w(2)
+                for sx in range(seg_w, fill_w, seg_w + gap):
+                    pygame.draw.line(surface, PANEL_BG, (bar_rect.x + sx, bar_rect.y),
+                                     (bar_rect.x + sx, bar_rect.y + bar_rect.h), max(1, gap))
+
+        pygame.draw.rect(surface, SECONDARY, bar_rect, 1, border_radius=1)
         txt = f_small.render(f"{mem_used} / {mem_total} GQ", True, TEXT_WHITE)
         surface.blit(txt, (scale.x(SCR_X + bar_w + 20), scale.y(cy)))
         cy += 30
@@ -490,6 +585,7 @@ class GatewayView:
             if len(files) > max_vis:
                 txt = f_small.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(files))} of {len(files)}", True, TEXT_DIM)
                 surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
+                _draw_scrollbar(surface, scale, SCR_X + SCR_W - 8, cy, max_vis * ROW_H, self.scroll, len(files), max_vis)
 
         # Context menu
         if self._ctx_menu:
@@ -834,6 +930,7 @@ class BBSView:
             f_sm = get_font(scale.fs(13), light=True)
             txt = f_sm.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(missions))} of {len(missions)}", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
+            _draw_scrollbar(surface, scale, SCR_X + SCR_W - 8, cy, max_vis * ROW_H, self.scroll, len(missions), max_vis)
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -928,6 +1025,7 @@ class SoftwareView:
             f_sm = get_font(scale.fs(13), light=True)
             txt = f_sm.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(sw_list))} of {len(sw_list)}", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
+            _draw_scrollbar(surface, scale, SCR_X + SCR_W - 8, cy, max_vis * ROW_H, self.scroll, len(sw_list), max_vis)
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -1017,6 +1115,7 @@ class HardwareView:
             f_sm = get_font(scale.fs(13), light=True)
             txt = f_sm.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(hw_list))} of {len(hw_list)}", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
+            _draw_scrollbar(surface, scale, SCR_X + SCR_W - 8, cy, max_vis * ROW_H, self.scroll, len(hw_list), max_vis)
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:

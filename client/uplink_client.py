@@ -39,8 +39,12 @@ class TopBar:
 
     def draw(self, surface, scale: Scale, state):
         rect = scale.rect(0, 0, DESIGN_W, TOPBAR_H)
-        pygame.draw.rect(surface, (14, 30, 46), rect)
-        pygame.draw.line(surface, SECONDARY, (rect.x, rect.bottom), (rect.right, rect.bottom))
+        # Gradient dark background
+        pygame.draw.rect(surface, (10, 22, 34), rect)
+        pygame.draw.line(surface, (*SECONDARY, 150), (rect.x, rect.bottom), (rect.right, rect.bottom), 1)
+        # Decorative accents at ends
+        pygame.draw.line(surface, SECONDARY, (rect.x, rect.y), (rect.x, rect.bottom), 4)
+        pygame.draw.line(surface, SECONDARY, (rect.right-4, rect.y), (rect.right-4, rect.bottom), 4)
 
         p = state.player
         if not p:
@@ -48,52 +52,68 @@ class TopBar:
 
         font = get_font(scale.fs(18))
         small = get_font(scale.fs(14), light=True)
+        tiny = get_font(scale.fs(11), light=True)
 
         # Vertical centering helpers
         def vc(txt_surface):
             """Return design-y that vertically centers text in TOPBAR_H."""
             return (TOPBAR_H - txt_surface.get_height() / scale.factor) / 2
 
-        # Player handle
-        txt = font.render(p.get("handle", ""), True, PRIMARY)
-        surface.blit(txt, (scale.x(20), scale.y(vc(txt))))
+        # Player handle (with tech prefix)
+        lbl = tiny.render("AGENT:", True, SECONDARY)
+        surface.blit(lbl, (scale.x(15), scale.y(vc(lbl))))
+        txt = font.render(p.get("handle", "").upper(), True, PRIMARY)
+        surface.blit(txt, (scale.x(65), scale.y(vc(txt))))
 
         # Remote host
         rh = p.get("remotehost", "")
-        txt = font.render(rh, True, TEXT_WHITE)
-        surface.blit(txt, (scale.x(600), scale.y(vc(txt))))
+        if rh:
+            lbl = tiny.render("HOST:", True, SECONDARY)
+            surface.blit(lbl, (scale.x(600), scale.y(vc(lbl))))
+            txt = font.render(rh, True, TEXT_WHITE)
+            surface.blit(txt, (scale.x(645), scale.y(vc(txt))))
 
         # Screen name
         mt = state.screen_data.get("maintitle", "")
         if mt:
-            txt = small.render(mt, True, TEXT_DIM)
-            surface.blit(txt, (scale.x(750), scale.y(vc(txt))))
+            txt = small.render(mt.upper(), True, TEXT_DIM)
+            surface.blit(txt, (scale.x(850), scale.y(vc(txt))))
 
         # Balance
         bal = state.balance
-        txt = font.render(f"{bal}c", True, (43, 255, 209))
-        surface.blit(txt, (scale.x(1400), scale.y(vc(txt))))
+        lbl = tiny.render("CREDITS:", True, SECONDARY)
+        surface.blit(lbl, (scale.x(1340), scale.y(vc(lbl))))
+        txt = font.render(f"{bal:,}c", True, (43, 255, 209))
+        surface.blit(txt, (scale.x(1410), scale.y(vc(txt))))
 
         # Speed (clickable)
-        speeds = ["||", ">", ">>", ">>>"]
+        speeds = ["PAUSE", ">", ">>", ">>>"]
         self._speed_rects = []
-        sx = 1550
+        sx = 1530
         for i, s in enumerate(speeds):
-            color = PRIMARY if state.speed == i else TEXT_DIM
+            is_active = state.speed == i
+            color = PRIMARY if is_active else TEXT_DIM
             txt = small.render(s, True, color)
             tx = scale.x(sx)
             ty = scale.y(vc(txt))
+            if is_active:
+                # High-fidelity active speed indicator
+                glow = pygame.Surface((scale.w(60), rect.h-4), pygame.SRCALPHA)
+                glow.fill((*PRIMARY, 35))
+                surface.blit(glow, (tx - scale.w(10), rect.y + 2))
+                pygame.draw.rect(surface, PRIMARY, (tx - scale.w(10), rect.y+2, scale.w(60), rect.h-4), 1)
+
             surface.blit(txt, (tx, ty))
-            self._speed_rects.append(pygame.Rect(tx - 4, rect.y, scale.w(46), rect.h))
-            sx += 50
+            self._speed_rects.append(pygame.Rect(tx - 10, rect.y, scale.w(60), rect.h))
+            sx += 65
 
         # Date
-        txt = small.render(state.date, True, TEXT_DIM)
-        surface.blit(txt, (scale.x(1740), scale.y(vc(txt))))
+        txt = small.render(state.date.upper(), True, TEXT_DIM)
+        surface.blit(txt, (scale.x(1760), scale.y(vc(txt))))
 
 
 class StatusBar:
-    """Bottom status bar."""
+    """Bottom status bar with connection chain and trace tracker."""
     def __init__(self):
         self.message = ""
         self.msg_time = 0
@@ -104,44 +124,68 @@ class StatusBar:
 
     def draw(self, surface, scale: Scale, state):
         rect = scale.rect(0, DESIGN_H - STATUSBAR_H, DESIGN_W, STATUSBAR_H)
-        pygame.draw.rect(surface, (14, 30, 46), rect)
-        pygame.draw.line(surface, SECONDARY, (rect.x, rect.y), (rect.right, rect.y))
+        pygame.draw.rect(surface, (10, 22, 34), rect)
+        pygame.draw.line(surface, (*SECONDARY, 150), (rect.x, rect.y), (rect.right, rect.y), 1)
 
         font = get_font(scale.fs(14), light=True)
+        tiny = get_font(scale.fs(11), light=True)
 
         # Connection chain
         nodes = state.connection.get("nodes", [])
         if nodes:
+            lbl = tiny.render("CHAIN:", True, SECONDARY)
+            surface.blit(lbl, (scale.x(15), rect.y + 10))
             chain = " > ".join(nodes)
-            txt = font.render(chain, True, SECONDARY)
-            surface.blit(txt, (scale.x(20), rect.y + (rect.h - txt.get_height()) // 2))
+            txt = font.render(chain, True, TEXT_DIM)
+            surface.blit(txt, (scale.x(70), rect.y + 8))
 
         # Status message (fades after 4s)
         if self.message:
             elapsed = pygame.time.get_ticks() - self.msg_time
             if elapsed < 4000:
                 alpha = 255 if elapsed < 3000 else int(255 * (4000 - elapsed) / 1000)
-                txt = font.render(self.message, True, PRIMARY)
+                # Add DATA: prefix for tech look
+                msg_txt = f"DATA: {self.message.upper()}"
+                txt = font.render(msg_txt, True, PRIMARY)
                 txt.set_alpha(alpha)
                 cx = scale.x(960) - txt.get_width() // 2
-                surface.blit(txt, (cx, rect.y + scale.h(6)))
+                surface.blit(txt, (cx, rect.y + 8))
 
-        # Trace
+        # Version info (bottom right)
+        ver_txt = tiny.render("UPLINK HEADLESS MOD v2.0", True, (SECONDARY[0], SECONDARY[1], SECONDARY[2], 120))
+        surface.blit(ver_txt, (rect.right - ver_txt.get_width() - 15, rect.y + 10))
+
+        # Trace Tracker (high-fidelity)
         trace = state.trace
         if trace.get("active"):
             prog = trace.get("progress", 0)
             total = trace.get("total", 1)
             pct = prog / max(total, 1)
-            # Red progress bar
-            bx = scale.x(1600)
-            by = rect.y + scale.h(8)
-            bw = scale.w(280)
-            bh = scale.h(14)
-            pygame.draw.rect(surface, PANEL_BG, (bx, by, bw, bh))
-            pygame.draw.rect(surface, (211, 26, 26), (bx, by, int(bw * pct), bh))
-            pygame.draw.rect(surface, (211, 26, 26), (bx, by, bw, bh), 1)
-            txt = font.render(f"TRACE {int(pct*100)}%", True, TEXT_WHITE)
-            surface.blit(txt, (bx + 4, by))
+            
+            bx = scale.x(1650)
+            by = rect.y + scale.h(6)
+            bw = scale.w(250)
+            bh = scale.h(20)
+            
+            # Trace track
+            pygame.draw.rect(surface, (20, 10, 10), (bx, by, bw, bh))
+            if pct > 0:
+                fill_w = int(bw * pct)
+                # Multi-stage color (green -> yellow -> red)
+                color = SUCCESS if pct < 0.4 else ((255, 200, 50) if pct < 0.7 else ALERT)
+                fill_surf = pygame.Surface((fill_w, bh), pygame.SRCALPHA)
+                fill_surf.fill((*color, 180))
+                surface.blit(fill_surf, (bx, by))
+                # Segments
+                seg_w = scale.w(8)
+                gap = scale.w(2)
+                for sx in range(seg_w, fill_w, seg_w + gap):
+                    pygame.draw.line(surface, (10, 22, 34), (bx + sx, by), (bx + sx, by + bh), max(1, gap))
+
+            pygame.draw.rect(surface, color if pct > 0.7 else SECONDARY, (bx, by, bw, bh), 1)
+            
+            lbl = tiny.render("TRACE ANALYZER:", True, color if pct > 0.7 else SECONDARY)
+            surface.blit(lbl, (bx - lbl.get_width() - 10, rect.y + 10))
 
 
 class TabBar:
@@ -153,22 +197,30 @@ class TabBar:
 
     def draw(self, surface, scale: Scale):
         rect = scale.rect(0, TOPBAR_H, DESIGN_W, TAB_H)
-        pygame.draw.rect(surface, (11, 18, 28), rect)
+        pygame.draw.rect(surface, (11, 24, 38), rect)
+        pygame.draw.line(surface, (*SECONDARY, 100), (rect.x, rect.bottom), (rect.right, rect.bottom), 1)
 
         font = get_font(scale.fs(16))
         tx = 20
+        tab_spacing = 240
         for i, name in enumerate(self.TABS):
-            color = PRIMARY if i == self.active else TEXT_DIM
-            txt = font.render(name, True, color)
+            is_active = i == self.active
+            color = PRIMARY if is_active else TEXT_DIM
+            txt = font.render(name.upper(), True, color)
             x = scale.x(tx)
             y = rect.y + (rect.h - txt.get_height()) // 2
+            
+            if is_active:
+                # Stylized active tab indicator
+                glow = pygame.Surface((scale.w(tab_spacing - 10), rect.h), pygame.SRCALPHA)
+                glow.fill((*PRIMARY, 25))
+                surface.blit(glow, (x - scale.w(15), rect.y))
+                # Top/Bottom caps
+                pygame.draw.line(surface, PRIMARY, (x - scale.w(15), rect.y), (x + scale.w(tab_spacing - 25), rect.y), 2)
+                pygame.draw.line(surface, PRIMARY, (x - scale.w(15), rect.bottom-1), (x + scale.w(tab_spacing - 25), rect.bottom-1), 2)
+                
             surface.blit(txt, (x, y))
-            if i == self.active:
-                pygame.draw.line(surface, PRIMARY,
-                                 (x, rect.bottom - scale.h(3)),
-                                 (x + txt.get_width(), rect.bottom - scale.h(3)),
-                                 scale.h(3))
-            tx += 200 + 40
+            tx += tab_spacing
 
     def handle_event(self, event, scale: Scale):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
