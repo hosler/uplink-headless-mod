@@ -49,6 +49,7 @@ class BrowserView:
         self._lan_selected = -1  # selected LAN system index
         # Active operation (file copy, log delete, etc.)
         self._operation = None      # {type, label, start, duration, on_complete}
+        self._dialog_inputs = {}    # name -> TextInput
 
         self._crack_user = ""
         self._crack_pass = ""
@@ -83,6 +84,7 @@ class BrowserView:
                 self._pw_input = None
                 self._user_input = None
                 self._console_input = None
+                self._dialog_inputs = {}
                 self._scroll = 0
                 # Clear stale data from previous screen
                 state.remote_files = []
@@ -530,7 +532,7 @@ class BrowserView:
             surface.blit(txt, (scale.x(SCR_X + SCR_W - 140), scale.y(y + 25)))
 
     def _draw_dialog(self, surface, scale, state, cy):
-        f_body = get_font(scale.fs(18), light=True)
+        f_body = get_font(scale.fs(16), light=True)
         f_btn = get_font(scale.fs(18))
         f_label = get_font(scale.fs(14), light=True)
         mouse = pygame.mouse.get_pos()
@@ -541,64 +543,84 @@ class BrowserView:
         INPUT_TYPES = (3, 4)
         BUTTON_TYPES = (5, 7, 8)
 
-        for w in state.screen_data.get("widgets", []):
+        # First pass: collect inputs and buttons
+        widgets = state.screen_data.get("widgets", [])
+        
+        # Determine if this looks like a bank form
+        is_bank = any("bank" in w.get("caption", "").lower() for w in widgets) or "bank" in state.screen_data.get("subtitle", "").lower()
+        
+        # Use a centered form container
+        form_w = 500
+        form_x = SCR_X + (SCR_W - form_w) // 2
+        
+        # Draw decorative form background
+        bg_h = 450 # estimate
+        pygame.draw.rect(surface, (15, 25, 40, 150), scale.rect(form_x - 20, cy, form_w + 40, bg_h), border_radius=4)
+        pygame.draw.rect(surface, SECONDARY, scale.rect(form_x - 20, cy, form_w + 40, bg_h), 1, border_radius=4)
+
+        cy += 20
+        for w in widgets:
             cap = w.get("caption", "")
+            wname = w.get("name", "")
             wtype = w.get("type", 1)
-            if not cap:
-                continue
+            if not cap and wtype not in INPUT_TYPES: continue
 
             if wtype in CAPTION_TYPES:
-                # Plain text / label
-                for line in self._word_wrap(cap, f_body, scale.w(SCR_W - 40)):
-                    txt = f_body.render(line, True, TEXT_WHITE)
-                    surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
-                    cy += 24
-                cy += 4
+                col = PRIMARY if is_bank and "account" in cap.lower() else TEXT_WHITE
+                for line in self._word_wrap(cap, f_body, scale.w(form_w)):
+                    txt = f_body.render(line, True, col)
+                    surface.blit(txt, (scale.x(form_x), scale.y(cy)))
+                    cy += 22
+                cy += 8
 
             elif wtype in INPUT_TYPES:
                 # Text input field
-                Label(cap, 14, TEXT_DIM, True).draw(surface, scale, SCR_X + 20, cy)
-                cy += 18
-                rect = scale.rect(SCR_X + 20, cy, 400, 32)
-                pygame.draw.rect(surface, PANEL_BG, rect)
-                pygame.draw.rect(surface, SECONDARY, rect, 1)
-                placeholder = "••••••" if wtype == 4 else cap
-                txt = f_label.render(placeholder, True, TEXT_DIM)
-                surface.blit(txt, (rect.x + 8, rect.y + 7))
-                cy += 40
+                txt = f_label.render(cap.upper() if cap else "FIELD", True, SECONDARY)
+                surface.blit(txt, (scale.x(form_x), scale.y(cy)))
+                cy += 20
+                
+                # Manage TextInput widget
+                if wname not in self._dialog_inputs:
+                    self._dialog_inputs[wname] = TextInput(form_x, cy, form_w, 36, placeholder=cap, masked=(wtype==4), size=18)
+                    # If it's the first input, focus it
+                    if len(self._dialog_inputs) == 1:
+                        self._dialog_inputs[wname].focused = True
+                
+                inp = self._dialog_inputs[wname]
+                inp.dx, inp.dy, inp.dw = form_x, cy, form_w
+                inp.draw(surface, scale)
+                cy += 48
 
             elif wtype in BUTTON_TYPES:
-                # Clickable button
-                btn_w = max(160, f_btn.size(cap)[0] + 40)
-                rect = scale.rect(SCR_X + 20, cy, btn_w, 34)
+                # Form button (Submit, Cancel, etc.)
+                btn_w = 220
+                rect = scale.rect(form_x + (form_w - btn_w) // 2, cy, btn_w, 40)
                 hovered = rect.collidepoint(mouse)
+                
+                col = SUCCESS if any(k in cap.lower() for k in ("create", "ok", "next", "submit")) else PRIMARY
+                
                 if hovered:
-                    pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=3)
-                    txt = f_btn.render(cap, True, (0, 0, 0))
+                    pygame.draw.rect(surface, col, rect, 0, border_radius=4)
+                    txt = f_btn.render(cap.upper(), True, (0, 0, 0))
                 else:
-                    pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=3)
-                    txt = f_btn.render(cap, True, PRIMARY)
-                surface.blit(txt, (rect.x + 20, rect.y + 6))
-                cy += 42
+                    pygame.draw.rect(surface, col, rect, 1, border_radius=4)
+                    txt = f_btn.render(cap.upper(), True, col)
+                
+                surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
+                cy += 50
 
+        # Optional OK button if no other buttons found
+        if not any(w.get("type") in BUTTON_TYPES for w in widgets):
+            btn_w = 160
+            rect = scale.rect(form_x + (form_w - btn_w) // 2, cy + 10, btn_w, 40)
+            hovered = rect.collidepoint(mouse)
+            if hovered:
+                pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=4)
+                txt = f_btn.render("OK", True, (0, 0, 0))
             else:
-                # Unknown widget type — render as text
-                txt = f_body.render(cap, True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
-                cy += 24
-
-        # OK button at bottom — centered
-        cy += 10
-        btn_w = 200
-        rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, cy, btn_w, 42)
-        hovered = rect.collidepoint(mouse)
-        if hovered:
-            pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=4)
-            txt = f_btn.render("OK", True, (0, 0, 0))
-        else:
-            pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=4)
-            txt = f_btn.render("OK", True, PRIMARY)
-        surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
+                pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=4)
+                txt = f_btn.render("OK", True, PRIMARY)
+            surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
 
     def _draw_password(self, surface, scale, state, st, cy):
         import random, time
@@ -1144,28 +1166,53 @@ class BrowserView:
 
 
     def _draw_lan(self, surface, scale, state, cy):
-        """Render LAN topology as a node graph."""
+        """Render LAN topology as a node graph with Wireless LAN Receiver welcome."""
         lan = state.lan_data
         systems = lan.get("systems", [])
         links = lan.get("links", [])
         mouse = pygame.mouse.get_pos()
+        f_title = get_font(scale.fs(22))
+        f_info = get_font(scale.fs(15))
+        f_info_sm = get_font(scale.fs(13), light=True)
 
         if not systems:
-            f = get_font(scale.fs(16), light=True)
-            txt = f.render("No LAN systems detected.", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
+            # Wireless LAN Receiver Scanning Screen
+            HackerPanel(SCR_X + 20, cy, SCR_W - 40, 400, title="Wireless LAN Receiver", color=PRIMARY).draw(surface, scale)
+            txt = f_title.render("SCANNING FOR SIGNALS...", True, PRIMARY)
+            surface.blit(txt, (scale.x(SCR_X + SCR_W // 2) - txt.get_width() // 2, scale.y(cy + 150)))
+            # Animated pulse
+            pulse = (math.sin(time.time() * 5) + 1) / 2
+            pygame.draw.circle(surface, (*PRIMARY, int(100 * (1-pulse))), (scale.x(SCR_X + SCR_W // 2), scale.y(cy + 170)), scale.w(50 + 100 * pulse), 2)
             return
 
         # LAN view area
         lan_x = SCR_X + 20
-        lan_y = cy + 10
+        lan_y = cy + 40
         lan_w = SCR_W - 40
-        lan_h = 550
+        lan_h = 520
+
+        # Header for LAN
+        txt = f_title.render("WIRELESS LAN RECEIVER", True, PRIMARY)
+        surface.blit(txt, (scale.x(lan_x), scale.y(cy)))
+        
+        # Signal Strength Meter
+        sig_x = lan_x + lan_w - 220
+        Label("SIGNAL:", 14, SECONDARY, True).draw(surface, scale, sig_x, cy + 6)
+        for i in range(5):
+            h = 6 + i * 4
+            col = SUCCESS if i < 4 else (30, 60, 40)
+            pygame.draw.rect(surface, col, scale.rect(sig_x + 65 + i * 10, cy + 22 - h, 6, h))
 
         # Background panel
         lan_rect = scale.rect(lan_x, lan_y, lan_w, lan_h)
-        pygame.draw.rect(surface, (5, 10, 18), lan_rect, border_radius=4)
-        pygame.draw.rect(surface, SECONDARY, lan_rect, 1, border_radius=4)
+        pygame.draw.rect(surface, (2, 5, 10), lan_rect, border_radius=4)
+        pygame.draw.rect(surface, (*SECONDARY, 100), lan_rect, 1, border_radius=4)
+        
+        # Decorative grid
+        for gx in range(0, lan_w, 50):
+            pygame.draw.line(surface, (10, 20, 30), (scale.x(lan_x + gx), scale.y(lan_y)), (scale.x(lan_x + gx), scale.y(lan_y + lan_h)))
+        for gy in range(0, lan_h, 50):
+            pygame.draw.line(surface, (10, 20, 30), (scale.x(lan_x), scale.y(lan_y + gy)), (scale.x(lan_x + lan_w), scale.y(lan_y + gy)))
 
         # System type icons/colors
         TYPE_COLORS = {
@@ -1181,22 +1228,8 @@ class BrowserView:
             "Modem": (100, 200, 100),         # green
             "LogServer": (180, 140, 255),     # purple
         }
-        TYPE_SHAPES = {
-            "Router": "diamond",
-            "Hub": "circle",
-            "Terminal": "rect",
-            "MainServer": "hexagon",
-            "MailServer": "circle",
-            "FileServer": "circle",
-            "Authentication": "triangle",
-            "Lock": "triangle",
-            "IsolationBridge": "diamond",
-            "Modem": "rect",
-            "LogServer": "circle",
-        }
-
-        # Scale system positions to fit in LAN area
-        # Systems have x,y coords from the server
+        
+        # Scale system positions
         min_x = min(s.get("x", 0) for s in systems)
         max_x = max(s.get("x", 1) for s in systems)
         min_y = min(s.get("y", 0) for s in systems)
@@ -1207,15 +1240,11 @@ class BrowserView:
         def sys_pos(sys):
             nx = (sys.get("x", 0) - min_x) / range_x
             ny = (sys.get("y", 0) - min_y) / range_y
-            # Pad to keep nodes away from edges
-            nx = 0.08 + nx * 0.84
-            ny = 0.08 + ny * 0.84
-            sx = lan_rect.x + int(nx * lan_rect.w)
-            sy = lan_rect.y + int(ny * lan_rect.h)
-            return sx, sy
+            nx = 0.1 + nx * 0.8
+            ny = 0.1 + ny * 0.8
+            return lan_rect.x + int(nx * lan_rect.w), lan_rect.y + int(ny * lan_rect.h)
 
-        # Draw links first (behind nodes)
-        f_small = get_font(scale.fs(11), light=True)
+        # Draw links
         sys_by_idx = {s.get("index", i): s for i, s in enumerate(systems)}
         for link in links:
             from_sys = sys_by_idx.get(link.get("from"))
@@ -1224,189 +1253,160 @@ class BrowserView:
                 p1 = sys_pos(from_sys)
                 p2 = sys_pos(to_sys)
                 sec = link.get("security", 0)
-                color = ALERT if sec > 0 else (30, 55, 80)
-                width = 2 if sec > 0 else 1
-                pygame.draw.line(surface, color, p1, p2, width)
+                color = ALERT if sec > 1 else (SECONDARY if sec == 1 else (30, 55, 80))
+                pygame.draw.line(surface, color, p1, p2, 2 if sec > 0 else 1)
 
         # Draw systems
-        f_label = get_font(scale.fs(12))
-        f_type = get_font(scale.fs(10), light=True)
-        node_radius = scale.w(16)
-        self._lan_selected = getattr(self, '_lan_selected', -1)
-
+        f_label = get_font(scale.fs(11))
+        node_radius = scale.w(14)
         for i, sys in enumerate(systems):
-            if not sys.get("visible", 1):
-                continue
+            if not sys.get("visible", 1): continue
             sx, sy = sys_pos(sys)
             type_name = sys.get("typeName", "unknown")
             color = TYPE_COLORS.get(type_name, SECONDARY)
-            shape = TYPE_SHAPES.get(type_name, "circle")
-
-            # Check hover
-            dist = ((mouse[0] - sx) ** 2 + (mouse[1] - sy) ** 2) ** 0.5
+            
+            dist = ((mouse[0] - sx)**2 + (mouse[1] - sy)**2)**0.5
             hovered = dist < node_radius + 5
-            selected = sys.get("index", i) == self._lan_selected
+            selected = sys.get("index", i) == getattr(self, '_lan_selected', -1)
 
-            # Glow for hover/selected
             if hovered or selected:
-                glow = pygame.Surface((node_radius * 4, node_radius * 4), pygame.SRCALPHA)
-                glow_color = (*color, 50) if hovered else (*PRIMARY, 30)
-                pygame.draw.circle(glow, glow_color, (node_radius * 2, node_radius * 2), node_radius * 2)
-                surface.blit(glow, (sx - node_radius * 2, sy - node_radius * 2))
+                glow_r = node_radius * (1.5 if hovered else 1.3)
+                s = pygame.Surface((glow_r*2, glow_r*2), pygame.SRCALPHA)
+                pygame.draw.circle(s, (*color, 60 if hovered else 30), (glow_r, glow_r), glow_r)
+                surface.blit(s, (sx - glow_r, sy - glow_r))
 
-            # Draw shape
-            r = node_radius
-            if shape == "diamond":
-                pts = [(sx, sy - r), (sx + r, sy), (sx, sy + r), (sx - r, sy)]
-                pygame.draw.polygon(surface, color, pts)
-                pygame.draw.polygon(surface, TEXT_WHITE if hovered else SECONDARY, pts, 1)
-            elif shape == "hexagon":
-                pts = []
-                for a in range(6):
-                    angle = math.radians(60 * a - 30)
-                    pts.append((sx + int(r * math.cos(angle)), sy + int(r * math.sin(angle))))
-                pygame.draw.polygon(surface, color, pts)
-                pygame.draw.polygon(surface, TEXT_WHITE if hovered else SECONDARY, pts, 1)
-            elif shape == "rect":
-                rect = pygame.Rect(sx - r + 2, sy - r + 4, (r - 2) * 2, (r - 4) * 2)
-                pygame.draw.rect(surface, color, rect)
-                pygame.draw.rect(surface, TEXT_WHITE if hovered else SECONDARY, rect, 1)
-            elif shape == "triangle":
-                pts = [(sx, sy - r), (sx + r, sy + r), (sx - r, sy + r)]
-                pygame.draw.polygon(surface, color, pts)
-                pygame.draw.polygon(surface, TEXT_WHITE if hovered else SECONDARY, pts, 1)
-            else:  # circle
-                pygame.draw.circle(surface, color, (sx, sy), r)
-                pygame.draw.circle(surface, TEXT_WHITE if hovered else SECONDARY, (sx, sy), r, 1)
+            # Draw stylized node
+            pygame.draw.circle(surface, (10, 15, 25), (sx, sy), node_radius)
+            pygame.draw.circle(surface, color, (sx, sy), node_radius, 2)
+            pygame.draw.circle(surface, color, (sx, sy), scale.w(4))
+            
+            # Type Label
+            txt = f_label.render(type_name.upper(), True, TEXT_WHITE if hovered else TEXT_DIM)
+            surface.blit(txt, (sx - txt.get_width() // 2, sy + node_radius + 4))
 
-            # Label
-            label = type_name
-            txt = f_label.render(label, True, TEXT_WHITE if hovered else TEXT_DIM)
-            surface.blit(txt, (sx - txt.get_width() // 2, sy + r + 4))
-
-            # Security indicator
-            sec = sys.get("security", 0)
-            if sec > 0:
-                txt = f_type.render(f"Sec:{sec}", True, ALERT)
-                surface.blit(txt, (sx - txt.get_width() // 2, sy + r + 16))
-
-        # Info panel for selected system
-        info_y = lan_y + lan_h + 15
-        f_info = get_font(scale.fs(15))
-        f_info_sm = get_font(scale.fs(13), light=True)
-
-        if self._lan_selected >= 0:
+        # Selected system info panel
+        if getattr(self, '_lan_selected', -1) >= 0:
             sel_sys = sys_by_idx.get(self._lan_selected)
             if sel_sys:
+                info_y = lan_y + lan_h + 15
                 type_name = sel_sys.get("typeName", "unknown")
                 sec = sel_sys.get("security", 0)
                 screen_idx = sel_sys.get("screenIndex", -1)
                 color = TYPE_COLORS.get(type_name, SECONDARY)
 
-                txt = f_info.render(f"{type_name}", True, color)
-                surface.blit(txt, (scale.x(lan_x), scale.y(info_y)))
-                txt = f_info_sm.render(f"Security: {sec}   Screen: {screen_idx}", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(lan_x + 200), scale.y(info_y + 2)))
+                # Info card
+                rect = scale.rect(lan_x, info_y, 400, 60)
+                pygame.draw.rect(surface, (15, 25, 40, 180), rect, border_radius=4)
+                pygame.draw.rect(surface, color, rect, 1, border_radius=4)
+                
+                txt = f_info.render(type_name.upper(), True, color)
+                surface.blit(txt, (rect.x + 15, rect.y + 10))
+                txt = f_info_sm.render(f"SECURITY LEVEL: {sec}   NODE INDEX: {sel_sys.get('index')}", True, TEXT_DIM)
+                surface.blit(txt, (rect.x + 15, rect.y + 35))
 
-                # Navigate button if system has a screen
                 if screen_idx >= 0:
-                    btn_rect = scale.rect(lan_x + lan_w - 160, info_y - 2, 140, 28)
+                    btn_rect = scale.rect(lan_x + lan_w - 180, info_y + 10, 160, 40)
                     btn_hover = btn_rect.collidepoint(mouse)
-                    btn_color = PRIMARY if btn_hover else SECONDARY
-                    pygame.draw.rect(surface, btn_color, btn_rect, 0 if btn_hover else 1, border_radius=3)
-                    f_btn = get_font(scale.fs(14))
-                    txt = f_btn.render("ACCESS", True, (0, 0, 0) if btn_hover else btn_color)
+                    pygame.draw.rect(surface, PRIMARY if btn_hover else SECONDARY, btn_rect, 0 if btn_hover else 1, border_radius=4)
+                    f_btn = get_font(scale.fs(16))
+                    txt = f_btn.render("CONNECT TO NODE", True, (0, 0, 0) if btn_hover else PRIMARY)
                     surface.blit(txt, (btn_rect.centerx - txt.get_width() // 2, btn_rect.centery - txt.get_height() // 2))
-
-        # Legend
-        legend_y = info_y + 30
-        f_leg = get_font(scale.fs(12), light=True)
-        lx = scale.x(lan_x)
-        ly = scale.y(legend_y)
-        for type_name, color in [("Router", (43, 170, 255)), ("MainServer", (255, 200, 50)),
-                                  ("Authentication", (211, 26, 26)), ("Terminal", (140, 170, 200)),
-                                  ("FileServer", (43, 255, 209))]:
-            pygame.draw.circle(surface, color, (lx + 5, ly + 6), 4)
-            txt = f_leg.render(f"  {type_name}", True, TEXT_DIM)
-            surface.blit(txt, (lx + 12, ly))
-            lx += txt.get_width() + 24
 
     def _draw_company_info(self, surface, scale, state, cy, buttons):
         """Render company information from companyscreen_ buttons."""
-        f_title = get_font(scale.fs(20))
-        f_body = get_font(scale.fs(16), light=True)
-        f_label = get_font(scale.fs(13), light=True)
+        f_title = get_font(scale.fs(18))
+        f_body = get_font(scale.fs(15), light=True)
+        f_label = get_font(scale.fs(12), light=True)
+        f_header = get_font(scale.fs(14))
 
         # Parse company info from button names/captions
-        # Pattern: companyscreen_mdtitle, companyscreen_md, companyscreen_mdemail, companyscreen_mdtel
-        # Pattern: companyscreen_admintitle, companyscreen_admin, etc.
         roles = {}  # role -> {title, name, email, tel}
         for b in buttons:
             name = b.get("name", "")
             cap = b.get("caption", "").strip()
-            if not cap:
-                continue
-            # Extract role and field
+            if not cap: continue
+            
             prefix = "companyscreen_"
-            if not name.startswith(prefix):
-                continue
+            if not name.startswith(prefix): continue
             field = name[len(prefix):]
-            # Determine role (md, admin, etc.)
-            role = ""
-            for r in ("md", "admin", "ceo", "cto", "cfo"):
+            
+            # Determine role (md, admin, ceo, etc.)
+            role = "other"
+            for r in ("md", "admin", "ceo", "cto", "cfo", "publicity"):
                 if field.startswith(r):
                     role = r
                     field = field[len(r):]
                     break
-            if not role:
-                role = "other"
-            if role not in roles:
-                roles[role] = {}
-            if field == "title" or field == "":
-                if field == "":
-                    roles[role]["name"] = cap
-                else:
-                    roles[role]["title"] = cap
-            elif field == "email":
-                roles[role]["email"] = cap
-            elif field == "tel":
-                roles[role]["tel"] = cap
-            elif not field:
-                roles[role]["name"] = cap
+            
+            roles.setdefault(role, {})
+            if field == "title": roles[role]["title"] = cap
+            elif field == "email": roles[role]["email"] = cap
+            elif field == "tel": roles[role]["tel"] = cap
+            elif field == "" or field == "name": roles[role]["name"] = cap
 
-        # Render as info cards
-        for role, info in roles.items():
-            title = info.get("title", role.upper())
-            name = info.get("name", "")
-            email = info.get("email", "")
-            tel = info.get("tel", "")
+        # Draw cards in 2 columns if there's enough space
+        card_w = (SCR_W - 40) // 2
+        card_h = 95
+        gutter = 20
+        
+        # Sort roles: CEO/MD first
+        role_order = ["ceo", "md", "cto", "cfo", "admin", "publicity", "other"]
+        sorted_roles = sorted(roles.keys(), key=lambda r: role_order.index(r) if r in role_order else 99)
 
+        # Header
+        txt = f_header.render("CORPORATE DIRECTORY", True, SECONDARY)
+        surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy - 4)))
+        cy += 24
+        pygame.draw.line(surface, (*SECONDARY, 150), (scale.x(SCR_X + 15), scale.y(cy)), 
+                         (scale.x(SCR_X + SCR_W - 15), scale.y(cy)), 1)
+        cy += 15
+
+        for i, role in enumerate(sorted_roles):
+            info = roles[role]
+            col = i % 2
+            row = i // 2
+            rx = SCR_X + 15 + col * (card_w + gutter)
+            ry = cy + row * (card_h + gutter)
+            
+            rect = scale.rect(rx, ry, card_w, card_h)
+            
             # Card background
-            card_h = 70
-            card_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, card_h)
-            bg = pygame.Surface((card_rect.w, card_rect.h), pygame.SRCALPHA)
-            bg.fill((255, 255, 255, 8))
-            surface.blit(bg, card_rect.topleft)
+            bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            bg.fill((15, 25, 40, 180))
+            surface.blit(bg, rect.topleft)
+            pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1, border_radius=2)
+            
+            # Left accent bar
+            accent_col = PRIMARY if role in ("ceo", "md") else SECONDARY
+            pygame.draw.rect(surface, accent_col, (rect.x, rect.y, scale.w(4), rect.h))
+            
+            # Avatar placeholder
+            avatar_r = scale.rect(rx + 15, ry + 15, 50, 50)
+            pygame.draw.rect(surface, (30, 45, 60), avatar_r, border_radius=4)
+            pygame.draw.rect(surface, (*SECONDARY, 80), avatar_r, 1, border_radius=4)
+            # Simple person icon
+            pygame.draw.circle(surface, SECONDARY, (avatar_r.centerx, avatar_r.y + scale.h(18)), scale.w(8))
+            pygame.draw.arc(surface, SECONDARY, (avatar_r.x + scale.w(10), avatar_r.y + scale.h(22), scale.w(30), scale.h(30)), 0, 3.14, 2)
 
-            # Title (role)
-            txt = f_label.render(title, True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy + 5)))
-
-            # Name
-            if name:
-                txt = f_title.render(name, True, PRIMARY)
-                surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy + 22)))
-
-            # Email + Tel on right
-            rx = SCR_X + 500
+            # Info text
+            tx = rx + 80
+            title = info.get("title", role.upper()).upper()
+            txt = f_label.render(title, True, accent_col)
+            surface.blit(txt, (scale.x(tx), scale.y(ry + 15)))
+            
+            name = info.get("name", "REDACTED")
+            txt = f_title.render(name, True, TEXT_WHITE)
+            surface.blit(txt, (scale.x(tx), scale.y(ry + 32)))
+            
+            email = info.get("email", "")
             if email:
                 txt = f_body.render(email, True, TEXT_DIM)
-                surface.blit(txt, (scale.x(rx), scale.y(cy + 10)))
+                surface.blit(txt, (scale.x(tx), scale.y(ry + 58)))
+            
+            tel = info.get("tel", "")
             if tel:
                 txt = f_body.render(tel, True, TEXT_DIM)
-                surface.blit(txt, (scale.x(rx), scale.y(cy + 32)))
-
-            cy += card_h + 8
+                surface.blit(txt, (scale.x(tx + 180), scale.y(ry + 58)))
 
     def _draw_file_server(self, surface, scale, state, cy, files, mouse):
         f_header = get_font(scale.fs(16))
@@ -1898,20 +1898,67 @@ class BrowserView:
                     return
 
         elif st == "DialogScreen":
-            # Find OK button position (after all text)
-            f_body = get_font(scale.fs(18), light=True)
-            ok_y = cy
-            for w in sd.get("widgets", []):
-                cap = w.get("caption", "")
-                if cap:
-                    lines = self._word_wrap(cap, f_body, scale.w(SCR_W - 40))
-                    ok_y += len(lines) * 24 + 8
-            btn_w = 200
-            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, ok_y + 10, btn_w, 42)
-            if rect.collidepoint(event.pos):
-                self.net.dialog_ok()
-                audio.play_sfx("popup")
+            # Handle TextInput events
+            for name, inp in self._dialog_inputs.items():
+                r = inp.handle_event(event, scale)
+                if r == "submit":
+                    self.net.set_field(name, inp.text)
+                    self.net.dialog_ok()
+                    return
+                elif r == "tab":
+                    inp.focused = False
+                    # Focus next input
+                    names = list(self._dialog_inputs.keys())
+                    idx = (names.index(name) + 1) % len(names)
+                    self._dialog_inputs[names[idx]].focused = True
+                    return
+                elif r: # text changed
+                    self.net.set_field(name, inp.text)
+
+            if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
                 return
+
+            # Match drawing logic for button positions
+            form_w = 500
+            form_x = SCR_X + (SCR_W - form_w) // 2
+            f_body = get_font(scale.fs(16), light=True)
+            
+            btn_cy = cy + 20
+            widgets = sd.get("widgets", [])
+            for w in widgets:
+                cap = w.get("caption", "")
+                wname = w.get("name", "")
+                wtype = w.get("type", 1)
+                if not cap and wtype not in (3, 4): continue
+
+                if wtype in (1, 2, 9):
+                    lines = self._word_wrap(cap, f_body, scale.w(form_w))
+                    btn_cy += len(lines) * 22 + 8
+                elif wtype in (3, 4):
+                    btn_cy += 68
+                elif wtype in (5, 7, 8):
+                    btn_w = 220
+                    rect = scale.rect(form_x + (form_w - btn_w) // 2, btn_cy, btn_w, 40)
+                    if rect.collidepoint(event.pos):
+                        # For buttons, we might need to send all input values first?
+                        # Actually original Uplink does it on click.
+                        for iname, inp in self._dialog_inputs.items():
+                            self.net.set_field(iname, inp.text)
+                        self.net.send({"cmd": "click", "button": wname}, refresh_state=True)
+                        audio.play_sfx("popup")
+                        return
+                    btn_cy += 50
+
+            # Optional OK button
+            if not any(w.get("type") in (5, 7, 8) for w in widgets):
+                btn_w = 160
+                rect = scale.rect(form_x + (form_w - btn_w) // 2, btn_cy + 10, btn_w, 40)
+                if rect.collidepoint(event.pos):
+                    for iname, inp in self._dialog_inputs.items():
+                        self.net.set_field(iname, inp.text)
+                    self.net.dialog_ok()
+                    audio.play_sfx("popup")
+                    return
 
         elif st in ("PasswordScreen", "UserIDScreen"):
             if self._cracking:
@@ -2007,13 +2054,13 @@ class BrowserView:
         if not systems:
             return
 
-        # Same layout constants as _draw_lan
+        # Match layout from _draw_lan
         lan_x = SCR_X + 20
-        lan_y = cy + 10
+        lan_y = cy + 40
         lan_w = SCR_W - 40
-        lan_h = 550
+        lan_h = 520
         lan_rect = scale.rect(lan_x, lan_y, lan_w, lan_h)
-        node_radius = scale.w(16)
+        node_radius = scale.w(14)
 
         min_x = min(s.get("x", 0) for s in systems)
         max_x = max(s.get("x", 1) for s in systems)
@@ -2022,26 +2069,16 @@ class BrowserView:
         range_x = max(max_x - min_x, 1)
         range_y = max(max_y - min_y, 1)
 
-        # Check if clicked on ACCESS button
-        if self._lan_selected >= 0:
-            sys_by_idx = {s.get("index", i): s for i, s in enumerate(systems)}
-            sel_sys = sys_by_idx.get(self._lan_selected)
-            if sel_sys and sel_sys.get("screenIndex", -1) >= 0:
-                info_y = lan_y + lan_h + 15
-                btn_rect = scale.rect(lan_x + lan_w - 160, info_y - 2, 140, 28)
-                if btn_rect.collidepoint(event.pos):
-                    self.net.navigate(sel_sys["screenIndex"])
-                    audio.play_sfx("popup")
-                    return
+        sys_by_idx = {s.get("index", i): s for i, s in enumerate(systems)}
 
-        # Check if clicked on a system node
+        # Check for system node selection
         for i, sys in enumerate(systems):
             if not sys.get("visible", 1):
                 continue
             nx = (sys.get("x", 0) - min_x) / range_x
             ny = (sys.get("y", 0) - min_y) / range_y
-            nx = 0.08 + nx * 0.84
-            ny = 0.08 + ny * 0.84
+            nx = 0.1 + nx * 0.8
+            ny = 0.1 + ny * 0.8
             sx = lan_rect.x + int(nx * lan_rect.w)
             sy = lan_rect.y + int(ny * lan_rect.h)
 
@@ -2050,6 +2087,17 @@ class BrowserView:
                 self._lan_selected = sys.get("index", i)
                 audio.play_sfx("popup")
                 return
+
+        # Check if clicked on CONNECT TO NODE button
+        if getattr(self, '_lan_selected', -1) >= 0:
+            sel_sys = sys_by_idx.get(self._lan_selected)
+            if sel_sys and sel_sys.get("screenIndex", -1) >= 0:
+                info_y = lan_y + lan_h + 15
+                btn_rect = scale.rect(lan_x + lan_w - 180, info_y + 10, 160, 40)
+                if btn_rect.collidepoint(event.pos):
+                    self.net.navigate(sel_sys["screenIndex"])
+                    audio.play_sfx("login")
+                    return
 
         # Clicked empty space — deselect
         if lan_rect.collidepoint(event.pos):
