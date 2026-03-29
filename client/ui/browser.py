@@ -401,21 +401,44 @@ class BrowserView:
         options = state.screen_data.get("options", [])
         mouse = pygame.mouse.get_pos()
         for i, opt in enumerate(options):
-            y = cy + i * 50
-            rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 44)
+            y = cy + i * 54
+            rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 48)
             hovered = rect.collidepoint(mouse)
 
-            # Resting/Hover fill
-            fill_alpha = 25 if hovered else 12
-            fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-            fill.fill((*PRIMARY, fill_alpha))
-            surface.blit(fill, rect.topleft)
-            pygame.draw.rect(surface, PRIMARY if hovered else SECONDARY, rect, 1, border_radius=3)
-            # Arrow pointer on left (signature Uplink style)
-            arr = f_btn.render(">", True, PRIMARY if hovered else SECONDARY)
-            surface.blit(arr, (rect.x + 12, rect.y + (rect.h - arr.get_height()) // 2))
+            # Row background
+            if hovered:
+                bg_color = (*ROW_HOVER, 180)
+                border_color = PRIMARY
+            else:
+                bg_color = (*ROW_ALT, 120) if i % 2 == 0 else (0, 0, 0, 0)
+                border_color = SECONDARY
+
+            if bg_color[3] > 0:
+                fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                fill.fill(bg_color)
+                surface.blit(fill, rect.topleft)
+            
+            pygame.draw.rect(surface, border_color, rect, 1, border_radius=2)
+
+            # Uplink-style selection indicator (triangle)
+            if hovered:
+                pts = [
+                    (rect.x + scale.w(12), rect.y + scale.h(16)),
+                    (rect.x + scale.w(12), rect.y + rect.h - scale.h(16)),
+                    (rect.x + scale.w(24), rect.y + rect.h // 2)
+                ]
+                pygame.draw.polygon(surface, PRIMARY, pts)
+            else:
+                # Dimmer, smaller arrow
+                pts = [
+                    (rect.x + scale.w(14), rect.y + scale.h(20)),
+                    (rect.x + scale.w(14), rect.y + rect.h - scale.h(20)),
+                    (rect.x + scale.w(20), rect.y + rect.h // 2)
+                ]
+                pygame.draw.polygon(surface, SECONDARY, pts)
+
             txt = f_btn.render(opt["caption"], True, TEXT_WHITE if hovered else PRIMARY)
-            surface.blit(txt, (rect.x + 36, rect.y + (rect.h - txt.get_height()) // 2))
+            surface.blit(txt, (rect.x + scale.w(38), rect.y + (rect.h - txt.get_height()) // 2))
 
     def _draw_highsecurity(self, surface, scale, state, cy):
         """Render HighSecurityScreen as security challenge panels."""
@@ -558,11 +581,18 @@ class BrowserView:
 
     def _draw_password(self, surface, scale, state, st, cy):
         import random, time
+        f_subtitle = get_font(scale.fs(20), light=True)
         f_label = get_font(scale.fs(16), light=True)
         f_btn = get_font(scale.fs(20))
-        f_crack = get_font(scale.fs(28))
+        f_crack = get_font(scale.fs(32))
         f_crack_label = get_font(scale.fs(14), light=True)
         mouse = pygame.mouse.get_pos()
+
+        # Centered sub-heading for the form
+        cy += 20
+        txt = f_subtitle.render("AUTHENTICATION REQUIRED", True, ALERT)
+        surface.blit(txt, (scale.x(SCR_X + (SCR_W - txt.get_width() / scale.factor) // 2), scale.y(cy)))
+        cy += 60
 
         # Center the form in the content area
         form_x = SCR_X + (SCR_W - 400) // 2
@@ -578,14 +608,14 @@ class BrowserView:
             if creds and not self._crack_pass:
                 # Pick admin or first available
                 admin = [c for c in creds if c.get("name") == "admin"]
-                target = admin[0] if admin else creds[0]
+                target = admin[0] if admin else (creds[0] if creds else {})
                 self._crack_user = target.get("name", "")
                 self._crack_pass = target.get("password", "")
 
             # Cycling character animation
             anim_y = cy
             if st == "UserIDScreen" and self._crack_user:
-                Label("Username", 14, SECONDARY, True).draw(surface, scale, form_x, anim_y - 10)
+                Label("Target User", 14, SECONDARY, True).draw(surface, scale, form_x, anim_y - 10)
                 anim_y += 10
                 displayed = ""
                 for j, ch in enumerate(self._crack_user):
@@ -596,10 +626,10 @@ class BrowserView:
                         displayed += random.choice(self._crack_chars)
                 txt = f_crack.render(displayed, True, SUCCESS)
                 surface.blit(txt, (scale.x(form_x), scale.y(anim_y)))
-                anim_y += 40
+                anim_y += 45
 
             if self._crack_pass:
-                Label("Password", 14, SECONDARY, True).draw(surface, scale, form_x, anim_y + 5)
+                Label("Access Code", 14, SECONDARY, True).draw(surface, scale, form_x, anim_y + 5)
                 anim_y += 25
                 displayed = ""
                 pw_start = 0.3 if st == "UserIDScreen" else 0.0
@@ -612,17 +642,17 @@ class BrowserView:
                         displayed += random.choice(self._crack_chars)
                 txt = f_crack.render(displayed, True, SUCCESS)
                 surface.blit(txt, (scale.x(form_x), scale.y(anim_y)))
-                anim_y += 50
+                anim_y += 55
 
             # Progress bar
             bar_y = anim_y + 20
-            bar_rect = scale.rect(form_x, bar_y, form_w, 6)
+            bar_rect = scale.rect(form_x, bar_y, form_w, 8)
             pygame.draw.rect(surface, (20, 35, 50), bar_rect)
-            fill_rect = scale.rect(form_x, bar_y, int(form_w * progress), 6)
+            fill_rect = scale.rect(form_x, bar_y, int(form_w * progress), 8)
             pygame.draw.rect(surface, PRIMARY, fill_rect)
 
-            txt = f_crack_label.render("Password Breaker running...", True, PRIMARY)
-            surface.blit(txt, (scale.x(form_x), scale.y(bar_y + 12)))
+            txt = f_crack_label.render("DECRYPTING...", True, PRIMARY)
+            surface.blit(txt, (scale.x(form_x), scale.y(bar_y + 14)))
 
             # Auto-submit when done
             if progress >= 1.0 and self._crack_pass:
@@ -639,43 +669,48 @@ class BrowserView:
 
         # Normal password form
         if not self._pw_input:
-            self._pw_input = TextInput(form_x, cy + 40, form_w, 40, placeholder="Password", masked=True, size=22)
+            self._pw_input = TextInput(form_x, cy + 45, form_w, 40, placeholder="Access Code", masked=True, size=22)
             self._pw_input.focused = True
-            self._user_input = TextInput(form_x, cy - 10, form_w, 40, placeholder="Username", size=22)
+            self._user_input = TextInput(form_x, cy - 5, form_w, 40, placeholder="Username", size=22)
             if st == "UserIDScreen":
                 self._user_input.text = "admin"
                 self._user_input.cursor_pos = 5
 
         if st == "UserIDScreen":
-            Label("Username", 16, SECONDARY, True).draw(surface, scale, form_x, cy - 28)
+            Label("User ID", 16, SECONDARY, True).draw(surface, scale, form_x, cy - 24)
             self._user_input.draw(surface, scale)
 
-        Label("Password", 16, SECONDARY, True).draw(surface, scale, form_x, cy + 22)
+        Label("Access Code", 16, SECONDARY, True).draw(surface, scale, form_x, cy + 28)
         self._pw_input.draw(surface, scale)
 
         # Submit button
         btn_w = 200
         btn_x = form_x + (form_w - btn_w) // 2
-        rect = scale.rect(btn_x, cy + 95, btn_w, 38)
+        rect = scale.rect(btn_x, cy + 105, btn_w, 42)
         hovered = rect.collidepoint(mouse)
         if hovered:
             pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=3)
-            txt = f_btn.render("Submit", True, (0, 0, 0))
+            txt = f_btn.render("SUBMIT", True, (0, 0, 0))
         else:
             pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=3)
-            txt = f_btn.render("Submit", True, PRIMARY)
+            txt = f_btn.render("SUBMIT", True, PRIMARY)
         surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
 
         # "Run Password Breaker" button
-        crack_y = cy + 160
-        crack_w = 280
+        crack_y = cy + 180
+        crack_w = 320
         crack_x = form_x + (form_w - crack_w) // 2
-        crack_rect = scale.rect(crack_x, crack_y, crack_w, 34)
+        crack_rect = scale.rect(crack_x, crack_y, crack_w, 40)
         crack_hovered = crack_rect.collidepoint(mouse)
-        crack_color = ALERT if crack_hovered else (120, 30, 30)
-        pygame.draw.rect(surface, crack_color, crack_rect, 0 if crack_hovered else 1, border_radius=3)
-        f_crack_btn = get_font(scale.fs(16))
-        txt = f_crack_btn.render("Run Password Breaker", True, TEXT_WHITE if crack_hovered else ALERT)
+        
+        # Stylized hacking tool button
+        bg = pygame.Surface((crack_rect.w, crack_rect.h), pygame.SRCALPHA)
+        bg.fill((*ALERT, 40 if crack_hovered else 20))
+        surface.blit(bg, crack_rect.topleft)
+        pygame.draw.rect(surface, ALERT if crack_hovered else (150, 40, 40), crack_rect, 1, border_radius=2)
+        
+        f_crack_btn = get_font(scale.fs(18))
+        txt = f_crack_btn.render("RUN PASSWORD BREAKER", True, TEXT_WHITE if crack_hovered else ALERT)
         surface.blit(txt, (crack_rect.centerx - txt.get_width() // 2, crack_rect.centery - txt.get_height() // 2))
 
     def _draw_links(self, surface, scale, state, cy):
@@ -683,18 +718,18 @@ class BrowserView:
         f_name = get_font(scale.fs(20))
         f_ip = get_font(scale.fs(14), light=True)
         f_label = get_font(scale.fs(16), light=True)
+        f_header = get_font(scale.fs(14))
         mouse = pygame.mouse.get_pos()
-        row_h = 36
+        row_h = 40
 
         # Search/filter box
         self._search_input.dy = cy - 5
         self._search_input.dx = SCR_X + 550
         self._search_input.dw = 350
-        self._search_input.dh = 30
-        self._search_input.placeholder = "Filter..."
-        self._search_input.size = 16
+        self._search_input.dh = 32
+        self._search_input.placeholder = "SEARCH SYSTEMS..."
+        self._search_input.size = 15
         self._search_input.draw(surface, scale)
-        cy += 40
 
         # Filter links
         links = state.screen_links
@@ -702,9 +737,20 @@ class BrowserView:
         if query:
             links = [l for l in links if query in l.get("name", "").lower() or query in l.get("ip", "").lower()]
 
-        # Count display
-        txt = f_label.render(f"{len(links)} servers", True, TEXT_DIM)
-        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy - 34)))
+        # Header for the list
+        txt = f_header.render(f"SHOWING {len(links)} KNOWN SYSTEMS", True, SECONDARY)
+        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy - 2)))
+        cy += 42
+
+        # Column headers
+        txt = f_header.render("SYSTEM NAME", True, TEXT_DIM)
+        surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
+        txt = f_header.render("NETWORK ADDRESS", True, TEXT_DIM)
+        surface.blit(txt, (scale.x(SCR_X + SCR_W - 180), scale.y(cy)))
+        cy += 24
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X + 10), scale.y(cy)),
+                         (scale.x(SCR_X + SCR_W - 10), scale.y(cy)), 1)
+        cy += 8
 
         for i, link in enumerate(links):
             y = cy + i * row_h
@@ -713,26 +759,30 @@ class BrowserView:
             rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
             hovered = rect.collidepoint(mouse)
 
-            # Zebra stripe
-            if i % 2 == 1:
-                alt = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                alt.fill((180, 210, 255, 12))
-                surface.blit(alt, rect.topleft)
+            # Row background
             if hovered:
-                glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                glow.fill((*PRIMARY, 25))
-                surface.blit(glow, rect.topleft)
-                pygame.draw.rect(surface, (*SECONDARY, 150), rect, 1)
+                bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                bg.fill((*ROW_HOVER, 180))
+                surface.blit(bg, rect.topleft)
+                pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=2)
+            elif i % 2 == 1:
+                bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                bg.fill((*ROW_ALT, 100))
+                surface.blit(bg, rect.topleft)
 
-            name = link.get("name", "")
+            name = link.get("name", "").upper()
             ip = link.get("ip", "")
-            # Server name on left, IP right-aligned on same line
-            txt = f_name.render(name[:45], True, TEXT_WHITE if hovered else PRIMARY)
-            surface.blit(txt, (rect.x + 10, rect.y + 4))
-            txt = f_ip.render(ip, True, SECONDARY if hovered else TEXT_DIM)
-            surface.blit(txt, (rect.right - txt.get_width() - 10, rect.y + 7))
+            
+            # Server name on left
+            txt = f_name.render(name[:50], True, TEXT_WHITE if hovered else PRIMARY)
+            surface.blit(txt, (rect.x + 12, rect.y + (rect.h - txt.get_height()) // 2))
+            
+            # IP right-aligned
+            txt = f_ip.render(ip, True, TEXT_WHITE if hovered else TEXT_DIM)
+            surface.blit(txt, (rect.right - txt.get_width() - 15, rect.y + (rect.h - txt.get_height()) // 2))
 
     def _draw_message(self, surface, scale, state, cy):
+        f_title = get_font(scale.fs(22))
         f_body = get_font(scale.fs(18), light=True)
         f_btn = get_font(scale.fs(20))
         mouse = pygame.mouse.get_pos()
@@ -745,24 +795,45 @@ class BrowserView:
                 msg_text = cap
 
         if msg_text:
-            for line in self._word_wrap(msg_text, f_body, scale.w(SCR_W - 40)):
+            # Main panel for message
+            subtitle = state.screen_data.get("subtitle", "MESSAGE")
+            lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
+            panel_h = len(lines) * 24 + 80
+            panel_rect = scale.rect(SCR_X + 20, cy, SCR_W - 40, panel_h)
+            
+            # Background
+            bg = pygame.Surface((panel_rect.w, panel_rect.h), pygame.SRCALPHA)
+            bg.fill((*PANEL_BG, 180))
+            surface.blit(bg, panel_rect.topleft)
+            pygame.draw.rect(surface, SECONDARY, panel_rect, 1, border_radius=4)
+            
+            # Subtitle/Header
+            txt = f_title.render(subtitle.upper(), True, PRIMARY)
+            surface.blit(txt, (panel_rect.x + 20, panel_rect.y + 15))
+            pygame.draw.line(surface, SECONDARY, (panel_rect.x + 15, panel_rect.y + 45),
+                             (panel_rect.x + panel_rect.w - 15, panel_rect.y + 45), 1)
+
+            # Body text
+            ty = panel_rect.y + 60
+            for line in lines:
                 txt = f_body.render(line, True, TEXT_WHITE)
-                surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy)))
-                cy += 22
-            cy += 20
+                surface.blit(txt, (panel_rect.x + 20, ty))
+                ty += 24
+            
+            cy += panel_h + 30
 
         # Only show Continue button if there's a messagescreen_click button
         has_next = any("messagescreen_click" in b.get("name", "") for b in state.buttons)
         if has_next:
-            btn_w = 220
-            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, cy + 10, btn_w, 44)
+            btn_w = 240
+            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, cy, btn_w, 46)
             hovered = rect.collidepoint(mouse)
             if hovered:
                 pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=4)
-                txt = f_btn.render("Continue", True, (0, 0, 0))
+                txt = f_btn.render("CONTINUE", True, (0, 0, 0))
             else:
                 pygame.draw.rect(surface, PRIMARY, rect, 1, border_radius=4)
-                txt = f_btn.render("Continue", True, PRIMARY)
+                txt = f_btn.render("CONTINUE", True, PRIMARY)
             surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
 
     def _draw_generic(self, surface, scale, state, cy):
@@ -801,7 +872,7 @@ class BrowserView:
         """Render Records screen from recordscreen_title/value buttons."""
         f_title = get_font(scale.fs(18))
         f_value = get_font(scale.fs(18), light=True)
-        f_label = get_font(scale.fs(13), light=True)
+        f_header = get_font(scale.fs(14))
         f_btn = get_font(scale.fs(16))
         mouse = pygame.mouse.get_pos()
 
@@ -817,41 +888,64 @@ class BrowserView:
                 idx = name.split()[-1]
                 records.setdefault(idx, {})["value"] = cap
 
+        # Header
+        txt = f_header.render("DATABASE RECORDS", True, SECONDARY)
+        surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy - 4)))
+        cy += 24
+        pygame.draw.line(surface, SECONDARY, (scale.x(SCR_X + 15), scale.y(cy)),
+                         (scale.x(SCR_X + SCR_W - 15), scale.y(cy)), 1)
+        cy += 12
+
         # Render as rows
-        for idx in sorted(records.keys(), key=int):
+        for i, idx in enumerate(sorted(records.keys(), key=int)):
             r = records[idx]
-            title = r.get("title", "")
+            title = r.get("title", "").upper()
             value = r.get("value", "")
 
-            row_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, 36)
-            bg = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-            bg.fill((255, 255, 255, 8) if int(idx) % 2 == 0 else (0, 0, 0, 0))
-            surface.blit(bg, row_rect.topleft)
+            row_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, 38)
+            hovered = row_rect.collidepoint(mouse)
 
-            txt = f_title.render(title, True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 20), scale.y(cy + 8)))
-            txt = f_value.render(value, True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(SCR_X + 300), scale.y(cy + 8)))
-            cy += 38
+            if hovered:
+                bg = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+                bg.fill((*ROW_HOVER, 150))
+                surface.blit(bg, row_rect.topleft)
+                pygame.draw.rect(surface, PRIMARY, row_rect, 1, border_radius=2)
+            elif i % 2 == 0:
+                bg = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+                bg.fill((*ROW_ALT, 100))
+                surface.blit(bg, row_rect.topleft)
 
-        # Prev/Next/Close buttons
-        cy += 15
-        for label, bname_prefix in [("< Prev", "recordscreen_scrollleft"),
-                                     ("Next >", "recordscreen_scrollright"),
-                                     ("Close", "recordscreen_click")]:
+            # Title on left
+            txt = f_title.render(title, True, TEXT_WHITE if hovered else SECONDARY)
+            surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # Value right-aligned or at fixed offset
+            txt = f_value.render(value, True, TEXT_WHITE if hovered else PRIMARY)
+            surface.blit(txt, (scale.x(SCR_X + 320), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            cy += 42
+
+        # Prev/Next/Close buttons in a horizontal row
+        cy += 20
+        bx = SCR_X + 20
+        for label, bname_prefix in [("< PREV", "recordscreen_scrollleft"),
+                                     ("NEXT >", "recordscreen_scrollright"),
+                                     ("CLOSE", "recordscreen_click")]:
             btn = next((b for b in state.buttons if bname_prefix in b.get("name", "")), None)
             if btn:
-                bw = 100
-                rect = scale.rect(SCR_X + 20, cy, bw, 30)
+                bw = 140
+                rect = scale.rect(bx, cy, bw, 34)
                 hovered = rect.collidepoint(mouse)
-                color = PRIMARY if hovered else SECONDARY
-                pygame.draw.rect(surface, color, rect, 0 if hovered else 1, border_radius=3)
-                txt = f_btn.render(label, True, (0, 0, 0) if hovered else color)
-                surface.blit(txt, (rect.x + 10, rect.y + 5))
-                # Shift x for next button
-                # Actually stack them horizontally
-        # Redraw horizontally
-        # (simplified: just show the record data for now)
+                
+                # Stylized button
+                if hovered:
+                    pygame.draw.rect(surface, PRIMARY, rect, 0, border_radius=3)
+                    txt = f_btn.render(label, True, (0, 0, 0))
+                else:
+                    pygame.draw.rect(surface, SECONDARY, rect, 1, border_radius=3)
+                    txt = f_btn.render(label, True, SECONDARY)
+                
+                surface.blit(txt, (rect.centerx - txt.get_width() // 2, rect.centery - txt.get_height() // 2))
+                bx += 160
 
     def _draw_security(self, surface, scale, state, cy):
         """Render Security status screen."""
@@ -893,6 +987,7 @@ class BrowserView:
 
     def _draw_console(self, surface, scale, state, cy):
         """Render Console screen with interactive command prompt."""
+        f_header = get_font(scale.fs(14))
         f_prompt = get_font(scale.fs(16))
         f_output = get_font(scale.fs(14), light=True)
 
@@ -904,38 +999,43 @@ class BrowserView:
                 if cap:
                     prompt_prefix = cap
 
+        # Terminal header
+        txt = f_header.render("TERMINAL INTERFACE v4.0.1", True, SECONDARY)
+        surface.blit(txt, (scale.x(SCR_X + 15), scale.y(cy - 4)))
+        cy += 20
+
         # Render terminal-style background
-        term_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, 420)
-        pygame.draw.rect(surface, (5, 10, 15), term_rect, border_radius=4)
+        term_rect = scale.rect(SCR_X + 10, cy, SCR_W - 20, 480)
+        pygame.draw.rect(surface, (5, 8, 12), term_rect, border_radius=4)
         pygame.draw.rect(surface, SECONDARY, term_rect, 1, border_radius=4)
 
         # Console output lines
-        out_y = cy + 10
+        out_y = cy + 15
         for b in state.buttons:
             name = b.get("name", "")
             cap = b.get("caption", "").strip()
             if name.startswith("console_") and name not in ("console_typehere", "console_post", "console_title"):
                 if cap:
-                    txt = f_output.render(cap, True, SUCCESS)
-                    surface.blit(txt, (scale.x(SCR_X + 20), scale.y(out_y)))
-                    out_y += 18
+                    txt = f_output.render(cap.upper(), True, SUCCESS)
+                    surface.blit(txt, (scale.x(SCR_X + 25), scale.y(out_y)))
+                    out_y += 20
 
         # Interactive prompt at bottom
-        prompt_y = cy + 380
+        prompt_y = cy + 440
         if not self._console_input:
-            self._console_input = TextInput(SCR_X + 20, prompt_y, SCR_W - 60, 30,
-                                            placeholder="Type command...", size=16)
+            self._console_input = TextInput(SCR_X + 25, prompt_y, SCR_W - 60, 30,
+                                            placeholder="ENTER COMMAND...", size=15)
             self._console_input.focused = True
 
         # Draw prompt prefix
         txt = f_prompt.render(prompt_prefix, True, SUCCESS)
-        prefix_w = txt.get_width() + 8
-        surface.blit(txt, (scale.x(SCR_X + 20), scale.y(prompt_y + 5)))
+        prefix_w = txt.get_width() + 10
+        surface.blit(txt, (scale.x(SCR_X + 25), scale.y(prompt_y + 6)))
 
         # Position input after prefix
-        self._console_input.dx = SCR_X + 20 + int(prefix_w / scale.factor)
+        self._console_input.dx = SCR_X + 25 + int(prefix_w / scale.factor)
         self._console_input.dy = prompt_y
-        self._console_input.dw = SCR_W - 60 - int(prefix_w / scale.factor)
+        self._console_input.dw = SCR_W - 70 - int(prefix_w / scale.factor)
         self._console_input.draw(surface, scale)
 
     def _draw_lan(self, surface, scale, state, cy):
@@ -1207,124 +1307,145 @@ class BrowserView:
         f_header = get_font(scale.fs(16))
         f_row = get_font(scale.fs(15), light=True)
         f_small = get_font(scale.fs(13), light=True)
-        max_vis = 15
-        row_h = 36
+        max_vis = 16
+        row_h = 40
+
+        # Column header background
+        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, 36)
+        bg = pygame.Surface((head_rect.w, head_rect.h), pygame.SRCALPHA)
+        bg.fill((*PANEL_BG, 120))
+        surface.blit(bg, head_rect.topleft)
+        pygame.draw.rect(surface, SECONDARY, head_rect, 1, border_radius=2)
 
         # Column headers
-        headers = [("Filename", 0), ("Size", 500), ("Encrypted", 600), ("Compressed", 730)]
+        headers = [("FILENAME", 25), ("SIZE", 500), ("SEC", 610), ("CMP", 740)]
         for h, hx in headers:
-            txt = f_header.render(h, True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(SCR_X + hx), scale.y(cy)))
-        cy += 28
-        pygame.draw.line(surface, SECONDARY,
-                         (scale.x(SCR_X), scale.y(cy)),
-                         (scale.x(SCR_X + SCR_W), scale.y(cy)), max(1, scale.h(1)))
-        cy += 8
+            txt = f_header.render(h, True, PRIMARY)
+            surface.blit(txt, (scale.x(SCR_X + hx), head_rect.y + (head_rect.h - txt.get_height()) // 2))
+        
+        cy += 42
 
         visible = files[self._scroll:self._scroll + max_vis]
         for i, f in enumerate(visible):
             y = cy + i * row_h
-            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
+            if y > 940:
+                break
+            row_rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
             hovered = row_rect.collidepoint(mouse)
 
-            # Alternating rows
-            if i % 2 == 1:
-                alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                alt.fill((255, 255, 255, 12))
-                surface.blit(alt, row_rect.topleft)
+            # Row background
             if hovered:
                 sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                sel.fill((*PRIMARY, 30))
+                sel.fill((*ROW_HOVER, 200))
                 surface.blit(sel, row_rect.topleft)
-                pygame.draw.rect(surface, (*SECONDARY, 150), row_rect, 1)
+                pygame.draw.rect(surface, PRIMARY, row_rect, 1, border_radius=2)
+            elif i % 2 == 1:
+                alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+                alt.fill((*ROW_ALT, 100))
+                surface.blit(alt, row_rect.topleft)
 
-            color = TEXT_WHITE if hovered else (140, 170, 200)
-            txt = f_row.render(f["title"][:40], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 6)))
-            txt = f_row.render(f"{f['size']} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 6)))
+            color = TEXT_WHITE if hovered else (160, 190, 220)
+            
+            # Filename
+            txt = f_row.render(f["title"][:45].upper(), True, color)
+            surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # Size
+            txt = f_row.render(f"{f['size']} GQ", True, TEXT_WHITE if hovered else TEXT_DIM)
+            surface.blit(txt, (scale.x(SCR_X + 500), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # Encrypted
             if f.get("encrypted"):
-                txt = f_row.render("Level " + str(f["encrypted"]), True, ALERT)
-                surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 6)))
+                txt = f_row.render("LV " + str(f["encrypted"]), True, ALERT)
+                surface.blit(txt, (scale.x(SCR_X + 610), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            else:
+                txt = f_row.render("NONE", True, (60, 80, 100))
+                surface.blit(txt, (scale.x(SCR_X + 610), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+                
+            # Compressed
             if f.get("compressed"):
-                txt = f_row.render("Level " + str(f["compressed"]), True, SECONDARY)
-                surface.blit(txt, (scale.x(SCR_X + 730), scale.y(y + 6)))
-
-            # Right-click hint
-            if hovered:
-                txt = f_small.render("Right-click for actions", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 180), scale.y(y + 8)))
+                txt = f_row.render("LV " + str(f["compressed"]), True, SUCCESS)
+                surface.blit(txt, (scale.x(SCR_X + 740), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            else:
+                txt = f_row.render("NONE", True, (60, 80, 100))
+                surface.blit(txt, (scale.x(SCR_X + 740), row_rect.y + (row_rect.h - txt.get_height()) // 2))
 
         # Scroll indicator
-        bottom_y = cy + min(len(visible), max_vis) * row_h + 8
         if len(files) > max_vis:
-            txt = f_small.render(f"{self._scroll + 1}-{min(self._scroll + max_vis, len(files))} of {len(files)} files", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X), scale.y(bottom_y)))
-
-        # Context menu
-        self._draw_context_menu(surface, scale)
+            bottom_y = cy + max_vis * row_h + 10
+            txt = f_small.render(f"FILES {self._scroll + 1}-{min(self._scroll + max_vis, len(files))} OF {len(files)}", True, TEXT_DIM)
+            surface.blit(txt, (scale.x(SCR_X + 20), scale.y(bottom_y)))
 
     def _draw_log_viewer(self, surface, scale, state, cy, logs, mouse):
         f_header = get_font(scale.fs(16))
         f_row = get_font(scale.fs(14), light=True)
         f_small = get_font(scale.fs(13), light=True)
-        max_vis = 16
-        row_h = 34
+        max_vis = 18
+        row_h = 36
+
+        # Column header background
+        head_rect = scale.rect(SCR_X + 10, cy - 4, SCR_W - 20, 36)
+        bg = pygame.Surface((head_rect.w, head_rect.h), pygame.SRCALPHA)
+        bg.fill((*PANEL_BG, 120))
+        surface.blit(bg, head_rect.topleft)
+        pygame.draw.rect(surface, SECONDARY, head_rect, 1, border_radius=2)
 
         # Column headers
-        headers = [("Date", 0), ("From IP", 200), ("User", 400), ("Action", 560)]
+        headers = [("DATE/TIME", 25), ("SOURCE IP", 200), ("USER ID", 380), ("ACTION/EVENT", 540)]
         for h, hx in headers:
-            txt = f_header.render(h, True, TEXT_WHITE)
-            surface.blit(txt, (scale.x(SCR_X + hx), scale.y(cy)))
-        cy += 28
-        pygame.draw.line(surface, SECONDARY,
-                         (scale.x(SCR_X), scale.y(cy)),
-                         (scale.x(SCR_X + SCR_W), scale.y(cy)), max(1, scale.h(1)))
-        cy += 8
+            txt = f_header.render(h, True, PRIMARY)
+            surface.blit(txt, (scale.x(SCR_X + hx), head_rect.y + (head_rect.h - txt.get_height()) // 2))
+        
+        cy += 42
 
         visible = logs[self._scroll:self._scroll + max_vis]
         for i, log in enumerate(visible):
             y = cy + i * row_h
-            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
+            if y > 940:
+                break
+            row_rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
             hovered = row_rect.collidepoint(mouse)
 
-            if i % 2 == 1:
-                alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                alt.fill((255, 255, 255, 12))
-                surface.blit(alt, row_rect.topleft)
+            # Row background
             if hovered:
                 sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                sel.fill((*PRIMARY, 30))
+                sel.fill((*ROW_HOVER, 200))
                 surface.blit(sel, row_rect.topleft)
-                pygame.draw.rect(surface, (*SECONDARY, 150), row_rect, 1)
+                pygame.draw.rect(surface, PRIMARY, row_rect, 1, border_radius=2)
+            elif i % 2 == 1:
+                alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
+                alt.fill((*ROW_ALT, 100))
+                surface.blit(alt, row_rect.topleft)
 
+            # Default color
             color = TEXT_WHITE if hovered else (140, 170, 200)
+            
             # Suspicious logs in yellow/red
             sus = log.get("suspicious", 0)
             if sus > 0:
                 color = ALERT if sus >= 2 else (255, 200, 50)
 
+            # Date
             txt = f_row.render(log.get("date", "")[:18], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 6)))
+            surface.blit(txt, (row_rect.x + 15, row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # From IP
             txt = f_row.render(log.get("from_ip", "")[:18], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 200), scale.y(y + 6)))
-            txt = f_row.render(log.get("from_name", "")[:14], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 400), scale.y(y + 6)))
-            txt = f_row.render(log.get("data1", "")[:30], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 560), scale.y(y + 6)))
-
-            if hovered:
-                txt = f_small.render("Right-click", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 100), scale.y(y + 8)))
+            surface.blit(txt, (scale.x(SCR_X + 200), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # User
+            txt = f_row.render(log.get("from_name", "")[:14].upper(), True, color)
+            surface.blit(txt, (scale.x(SCR_X + 380), row_rect.y + (row_rect.h - txt.get_height()) // 2))
+            
+            # Action
+            txt = f_row.render(log.get("data1", "")[:35].upper(), True, color)
+            surface.blit(txt, (scale.x(SCR_X + 540), row_rect.y + (row_rect.h - txt.get_height()) // 2))
 
         # Scroll indicator
-        bottom_y = cy + min(len(visible), max_vis) * row_h + 8
         if len(logs) > max_vis:
-            txt = f_small.render(f"{self._scroll + 1}-{min(self._scroll + max_vis, len(logs))} of {len(logs)} logs", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X), scale.y(bottom_y)))
-
-        # Context menu
-        self._draw_context_menu(surface, scale)
+            bottom_y = cy + max_vis * row_h + 10
+            txt = f_small.render(f"LOGS {self._scroll + 1}-{min(self._scroll + max_vis, len(logs))} OF {len(logs)}", True, TEXT_DIM)
+            surface.blit(txt, (scale.x(SCR_X + 20), scale.y(bottom_y)))
 
 
     # ================================================================
@@ -1656,7 +1777,7 @@ class BrowserView:
                 return
 
         elif st == "MessageScreen":
-            # Calculate Continue button position (same as draw)
+            # Calculate Continue button position (must match draw code)
             f_body = get_font(scale.fs(18), light=True)
             msg_cy = cy
             msg_text = ""
@@ -1665,12 +1786,13 @@ class BrowserView:
                 if cap and cap not in ("OK", " ", "") and len(cap) > len(msg_text):
                     msg_text = cap
             if msg_text:
-                lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 40))
-                msg_cy += len(lines) * 22 + 20
+                lines = self._word_wrap(msg_text, f_body, scale.w(SCR_W - 80))
+                panel_h = len(lines) * 24 + 80
+                msg_cy += panel_h + 30
 
             # Only click if there's actually a messagescreen_click button
-            btn_w = 220
-            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, msg_cy + 10, btn_w, 44)
+            btn_w = 240
+            rect = scale.rect(SCR_X + (SCR_W - btn_w) // 2, msg_cy, btn_w, 46)
             if rect.collidepoint(event.pos):
                 for btn in state.buttons:
                     name = btn.get("name", "")
