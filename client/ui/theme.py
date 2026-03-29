@@ -93,6 +93,27 @@ def draw_gradient(surface: pygame.Surface):
     surface.blit(_gradient_cache, (0, 0))
 
 
+_scanline_cache: pygame.Surface | None = None
+
+
+def draw_scanlines(surface: pygame.Surface):
+    """Draw subtle horizontal scanlines and vignette."""
+    global _scanline_cache
+    w, h = surface.get_size()
+    if _scanline_cache is None or _scanline_cache.get_size() != (w, h):
+        _scanline_cache = pygame.Surface((w, h), pygame.SRCALPHA)
+        # Scanlines
+        for y in range(0, h, 3):
+            pygame.draw.line(_scanline_cache, (0, 0, 0, 15), (0, y), (w, y))
+        # Vignette (smooth gradient)
+        for i in range(40):
+            alpha = int(60 * (1 - i / 40)**1.5)
+            # Draw concentric frames with decreasing alpha
+            pygame.draw.rect(_scanline_cache, (0, 0, 0, alpha), (0, 0, w, h), (i + 1) * 8)
+    surface.blit(_scanline_cache, (0, 0))
+
+
 def invalidate_gradient():
-    global _gradient_cache
+    global _gradient_cache, _scanline_cache
     _gradient_cache = None
+    _scanline_cache = None

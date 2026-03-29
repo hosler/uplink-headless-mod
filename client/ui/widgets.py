@@ -84,6 +84,7 @@ class Button:
         self.hovered = False
         self.enabled = True
         self.visible = True
+        self._hover_start = 0.0
 
     def get_rect(self, scale: Scale) -> pygame.Rect:
         return scale.rect(self.dx, self.dy, self.dw, self.dh)
@@ -102,19 +103,29 @@ class Button:
             
             # Complex border with corner tabs
             pygame.draw.rect(surface, (*SECONDARY, 100), rect, 1)
-            cw, ch = scale.w(8), scale.h(8)
-            # Corners
-            pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), 2)
-            pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x, rect.y + ch), 2)
-            pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), 2)
-            pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), 2)
-
+            cw, ch = scale.w(10), scale.h(10)
+            
+            # Hover effect
             if self.hovered:
                 # Brighter hover glow (50 alpha)
                 fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
                 fill.fill((*color, 60))
                 surface.blit(fill, rect.topleft)
                 pygame.draw.rect(surface, color, rect, 1)
+                
+                # Expanding corner accents
+                t = (time.time() - self._hover_start) * 4
+                offset = min(scale.w(4), int(scale.w(4) * t))
+                pygame.draw.line(surface, WHITE, (rect.x - offset, rect.y - offset), (rect.x + cw - offset, rect.y - offset), 2)
+                pygame.draw.line(surface, WHITE, (rect.x - offset, rect.y - offset), (rect.x - offset, rect.y + ch - offset), 2)
+                pygame.draw.line(surface, WHITE, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right - cw + offset - 1, rect.bottom + offset - 1), 2)
+                pygame.draw.line(surface, WHITE, (rect.right + offset - 1, rect.bottom + offset - 1), (rect.right + offset - 1, rect.bottom - ch + offset - 1), 2)
+            else:
+                # Static corners
+                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x + cw, rect.y), 2)
+                pygame.draw.line(surface, color, (rect.x, rect.y), (rect.x, rect.y + ch), 2)
+                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right - cw, rect.bottom-1), 2)
+                pygame.draw.line(surface, color, (rect.right-1, rect.bottom-1), (rect.right-1, rect.bottom - ch), 2)
 
             font = get_font(scale.fs(self.size))
             txt_color = color if self.hovered else TEXT_WHITE
@@ -133,7 +144,10 @@ class Button:
             return False
         rect = self.get_rect(scale)
         if event.type == pygame.MOUSEMOTION:
+            prev_hover = self.hovered
             self.hovered = rect.collidepoint(event.pos)
+            if self.hovered and not prev_hover:
+                self._hover_start = time.time()
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if rect.collidepoint(event.pos) and self.callback:
                 self.callback()
@@ -277,17 +291,17 @@ class ScrollableList:
 
         # Scrollbar
         if len(self.items) > vis:
-            sb_w = 6
-            sb_rect = pygame.Rect(rect.x + rect.w - 12, rect.y + 4, sb_w, rect.h - 8)
+            sb_w = scale.w(6)
+            sb_rect = pygame.Rect(rect.x + rect.w - scale.w(12), rect.y + scale.h(4), sb_w, rect.h - scale.h(8))
             # Track
             track = pygame.Surface((sb_rect.w, sb_rect.h), pygame.SRCALPHA)
             track.fill((*SECONDARY, 40))
             surface.blit(track, sb_rect.topleft)
             # Thumb
-            thumb_h = max(20, sb_rect.h * vis // len(self.items))
+            thumb_h = max(scale.h(20), sb_rect.h * vis // len(self.items))
             thumb_y = sb_rect.y + int((sb_rect.h - thumb_h) * self.scroll / max(len(self.items) - vis, 1))
             thumb_rect = pygame.Rect(sb_rect.x, thumb_y, sb_w, thumb_h)
-            pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=1)
+            pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=scale.w(1))
 
     def handle_event(self, event, scale: Scale) -> bool:
         rect = self.get_rect(scale)

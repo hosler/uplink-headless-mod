@@ -10,7 +10,7 @@ import audio
 CONTENT_Y = TOPBAR_H + TAB_H + 10
 SCR_W = 1400
 SCR_X = (DESIGN_W - SCR_W) // 2
-ROW_H = 32
+ROW_H = 38
 
 
 def _draw_panel(surface, scale, x, y, w, h, title=None):
@@ -115,12 +115,13 @@ def _draw_button(surface, scale, x, y, w, h, label, mouse, enabled=True):
     if enabled:
         # Resting state: subtle fill
         rest_fill = pygame.Surface((btn_rect.w, btn_rect.h), pygame.SRCALPHA)
-        rest_fill.fill((*color, 20))
+        rest_fill.fill((*color, 25))
         surface.blit(rest_fill, btn_rect.topleft)
         
         # Border with corner tabs
-        pygame.draw.rect(surface, (*SECONDARY, 120), btn_rect, 1)
-        cw, ch = scale.w(6), scale.h(6)
+        pygame.draw.rect(surface, (*SECONDARY, 140), btn_rect, 1)
+        cw, ch = scale.w(5), scale.h(5)
+        # Corners
         pygame.draw.line(surface, color, (btn_rect.x, btn_rect.y), (btn_rect.x + cw, btn_rect.y), 2)
         pygame.draw.line(surface, color, (btn_rect.x, btn_rect.y), (btn_rect.x, btn_rect.y + ch), 2)
         pygame.draw.line(surface, color, (btn_rect.right-1, btn_rect.bottom-1), (btn_rect.right - cw, btn_rect.bottom-1), 2)
@@ -128,7 +129,7 @@ def _draw_button(surface, scale, x, y, w, h, label, mouse, enabled=True):
         
         if btn_hovered:
             fill = pygame.Surface((btn_rect.w, btn_rect.h), pygame.SRCALPHA)
-            fill.fill((*color, 60))
+            fill.fill((*color, 80))
             surface.blit(fill, btn_rect.topleft)
             pygame.draw.rect(surface, color, btn_rect, 1)
             
@@ -148,7 +149,7 @@ def _draw_scrollbar(surface, scale, x, y, h, scroll, total, visible):
     """Draw a thin vertical scrollbar. x/y/h in design coords."""
     if total <= visible:
         return
-    bar_rect = scale.rect(x, y, 4, h)
+    bar_rect = scale.rect(x, y, 6, h)
     # Track
     track = pygame.Surface((bar_rect.w, bar_rect.h), pygame.SRCALPHA)
     track.fill((*SECONDARY, 30))
@@ -157,7 +158,8 @@ def _draw_scrollbar(surface, scale, x, y, h, scroll, total, visible):
     thumb_h = max(scale.h(20), int(bar_rect.h * visible / total))
     thumb_y = bar_rect.y + int((bar_rect.h - thumb_h) * scroll / max(total - visible, 1))
     thumb_rect = pygame.Rect(bar_rect.x, thumb_y, bar_rect.w, thumb_h)
-    pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=2)
+    pygame.draw.rect(surface, PRIMARY, thumb_rect, border_radius=scale.w(2))
+
 
 
 def _draw_empty_state(surface, scale, cy, message, submessage=None):
@@ -223,7 +225,7 @@ class EmailView:
 
         # Left panel: message list
         list_w = 560
-        f_row = get_font(scale.fs(14), light=True)
+        f_row = get_font(scale.fs(15), light=True)
         f_from = get_font(scale.fs(14))
         f_subj = get_font(scale.fs(13), light=True)
 
@@ -289,23 +291,21 @@ class EmailView:
             # Body text — word wrap
             body = msg.get("body", "")
             lines = body.replace("\\n", "\n").split("\n")
-            for line in lines:
-                # Simple word wrap at ~70 chars
-                while len(line) > 70:
-                    txt = f_body.render(line[:70], True, TEXT_WHITE)
-                    surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
-                    by += 20
-                    line = line[70:]
-                txt = f_body.render(line, True, TEXT_WHITE)
-                surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
-                by += 20
-                if by > body_y + 600:
+            f_body = get_font(scale.fs(14), light=True)
+            for raw_line in lines:
+                wrapped = self._wrap_text(raw_line, f_body, scale.w(body_w - 40))
+                for line in wrapped:
+                    txt = f_body.render(line, True, TEXT_WHITE)
+                    surface.blit(txt, (scale.x(body_x + 16), scale.y(by)))
+                    by += 22
+                by += 4 # paragraph spacing
+                if by > body_y + 580:
                     break
             # Attachment indicator
             if msg.get("hasdata"):
-                by += 10
-                txt = f_body.render("[Attachment included]", True, SUCCESS)
-                surface.blit(txt, (scale.x(body_x + 12), scale.y(by)))
+                by += 8
+                txt = f_body.render("[ ATTACHMENT INCLUDED ]", True, SUCCESS)
+                surface.blit(txt, (scale.x(body_x + 16), scale.y(by)))
         elif self.composing:
             # Compose mode
             f_head = get_font(scale.fs(16))
@@ -432,6 +432,22 @@ class EmailView:
         self._compose_attach = ""
 
 
+    def _wrap_text(self, text, font, max_width):
+        words = text.split()
+        lines = []
+        current = ""
+        for word in words:
+            test = current + " " + word if current else word
+            if font.size(test)[0] > max_width:
+                if current:
+                    lines.append(current)
+                current = word
+            else:
+                current = test
+        if current:
+            lines.append(current)
+        return lines
+
 # ============================================================================
 # Gateway View — model info, hardware, files, memory bar
 # ============================================================================
@@ -553,11 +569,13 @@ class GatewayView:
         if hw_list:
             txt = f_label.render("Installed Hardware", True, SECONDARY)
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
-            cy += 22
-            for hw in hw_list:
-                txt = f_val.render(f"  {hw}", True, TEXT_WHITE)
-                surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
-                cy += 22
+            cy += 24
+            for i, hw in enumerate(hw_list):
+                # Small data row for hardware
+                _draw_data_row(surface, scale, cy, False, alt=i%2==1)
+                txt = f_val.render(hw, True, TEXT_WHITE)
+                surface.blit(txt, (scale.x(SCR_X + 40), scale.y(cy + 8)))
+                cy += ROW_H
             cy += 10
 
         # Gateway files
@@ -567,7 +585,7 @@ class GatewayView:
             cy = _draw_header_row(surface, scale, cy, columns)
             self._file_rows_y = cy
 
-            f_row = get_font(scale.fs(14), light=True)
+            f_row = get_font(scale.fs(15), light=True)
             max_vis = 15
             visible = files[self.scroll:self.scroll + max_vis]
             for i, f in enumerate(visible):
@@ -682,7 +700,7 @@ class MissionsView:
 
         # Left panel: mission list
         list_w = 560
-        f_row = get_font(scale.fs(14), light=True)
+        f_row = get_font(scale.fs(15), light=True)
         f_pay = get_font(scale.fs(14))
 
         columns = [("Payment", SCR_X + 10), ("Difficulty", SCR_X + 120), ("Description", SCR_X + 210)]
@@ -808,12 +826,18 @@ class MissionsView:
             _draw_button(surface, scale, detail_x + 12, dy, 220, 28,
                          "SEND COMPLETION", mouse)
         else:
-            f = get_font(scale.fs(18), light=True)
+            # Centered empty state with icon
+            f = get_font(scale.fs(16), light=True)
             txt = f.render("SELECT A MISSION", True, TEXT_DIM)
-            # Center in the panel
             cx = scale.x(detail_x + detail_w // 2) - txt.get_width() // 2
-            cy_mid = scale.y(detail_y + 310) - txt.get_height() // 2
-            surface.blit(txt, (cx, cy_mid))
+            cy_text = scale.y(detail_y + 310)
+            # Diamond icon above text
+            ds = scale.w(12)
+            dx = scale.x(detail_x + detail_w // 2)
+            dy_icon = cy_text - scale.h(40)
+            pts = [(dx, dy_icon - ds), (dx + ds, dy_icon), (dx, dy_icon + ds), (dx - ds, dy_icon)]
+            pygame.draw.polygon(surface, TEXT_DIM, pts, 2)
+            surface.blit(txt, (cx, cy_text))
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -887,12 +911,12 @@ class BBSView:
                               "New contracts are posted periodically. Check back later.")
             return
 
-        columns = [("Payment", SCR_X + 10), ("Diff", SCR_X + 140),
-                   ("Employer", SCR_X + 200), ("Description", SCR_X + 420),
+        columns = [("Payment", SCR_X + 10), ("Diff", SCR_X + 160),
+                   ("Employer", SCR_X + 250), ("Description", SCR_X + 480),
                    ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
-        f_row = get_font(scale.fs(14), light=True)
+        f_row = get_font(scale.fs(15), light=True)
         f_pay = get_font(scale.fs(14))
         max_vis = 18
         visible = missions[self.scroll:self.scroll + max_vis]
@@ -913,15 +937,15 @@ class BBSView:
             diff = m.get("difficulty", 0)
             diff_color = SUCCESS if diff <= 3 else ((255, 200, 50) if diff <= 6 else ALERT)
             txt = f_row.render(f"{'*' * diff}", True, diff_color)
-            surface.blit(txt, (scale.x(SCR_X + 140), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 160), scale.y(y + 7)))
 
             # Employer
-            txt = f_row.render(m.get("employer", "")[:20], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 200), scale.y(y + 7)))
+            txt = f_row.render(m.get("employer", "")[:25], True, color)
+            surface.blit(txt, (scale.x(SCR_X + 250), scale.y(y + 7)))
 
             # Description
-            txt = f_row.render(m.get("description", "")[:50], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 420), scale.y(y + 7)))
+            txt = f_row.render(m.get("description", "")[:60], True, color)
+            surface.blit(txt, (scale.x(SCR_X + 480), scale.y(y + 7)))
 
             # Accept button
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "ACCEPT", mouse)
@@ -988,11 +1012,11 @@ class SoftwareView:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 10), ("Version", SCR_X + 500),
-                   ("Size", SCR_X + 620), ("Cost", SCR_X + 740), ("", SCR_X + SCR_W - 120)]
+        columns = [("Title", SCR_X + 10), ("Version", SCR_X + 700),
+                   ("Size", SCR_X + 850), ("Cost", SCR_X + 1000), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
-        f_row = get_font(scale.fs(14), light=True)
+        f_row = get_font(scale.fs(15), light=True)
         f_name = get_font(scale.fs(14))
         max_vis = 18
         visible = sw_list[self.scroll:self.scroll + max_vis]
@@ -1009,15 +1033,15 @@ class SoftwareView:
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 7)))
 
             txt = f_row.render(f"v{sw.get('version', 1)}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 700), scale.y(y + 7)))
 
             txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 620), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 850), scale.y(y + 7)))
 
             cost = sw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 740), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 1000), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 
@@ -1085,10 +1109,10 @@ class HardwareView:
             _draw_empty_state(surface, scale, cy, "No hardware available.")
             return
 
-        columns = [("Component", SCR_X + 10), ("Cost", SCR_X + 600), ("", SCR_X + SCR_W - 120)]
+        columns = [("Component", SCR_X + 10), ("Cost", SCR_X + 1000), ("", SCR_X + SCR_W - 120)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
-        f_row = get_font(scale.fs(14), light=True)
+        f_row = get_font(scale.fs(15), light=True)
         f_name = get_font(scale.fs(14))
         max_vis = 18
         visible = hw_list[self.scroll:self.scroll + max_vis]
@@ -1107,7 +1131,7 @@ class HardwareView:
             cost = hw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 1000), scale.y(y + 7)))
 
             _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
 

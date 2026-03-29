@@ -152,18 +152,18 @@ class BrowserView:
         # Link rows
         links = state.links
         mouse = pygame.mouse.get_pos()
-        row_h = 60
-        start_y = CONTENT_Y + 100
+        row_h = 42
+        start_y = CONTENT_Y + 110
 
         for i, link in enumerate(links):
-            y = start_y + i * row_h
-            if y > 880:
+            y = start_y + i * (row_h + 8)
+            if y > 920:
                 break
-            rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
+            rect = scale.rect(SCR_X, y, SCR_W, row_h)
             hovered = rect.collidepoint(mouse)
 
             # Row background
-            fill_alpha = 40 if hovered else 15
+            fill_alpha = 45 if hovered else 20
             fill = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
             fill.fill((*PRIMARY, fill_alpha))
             surface.blit(fill, rect.topleft)
@@ -192,36 +192,36 @@ class BrowserView:
             # Name
             name = link.get("name", "Unknown")
             txt = f_name.render(name, True, TEXT_WHITE if hovered else PRIMARY)
-            surface.blit(txt, (scale.x(SCR_X + 50), rect.y + scale.h(8)))
+            surface.blit(txt, (scale.x(SCR_X + 50), rect.y + scale.h(2)))
 
             # IP
             ip = link.get("ip", "")
             txt = f_ip.render(ip, True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 52), rect.y + scale.h(34)))
+            surface.blit(txt, (scale.x(SCR_X + 52), rect.y + scale.h(24)))
 
             # Arrow
             if hovered:
                 txt = f_name.render(">", True, PRIMARY)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 40), rect.y + scale.h(12)))
+                surface.blit(txt, (scale.x(SCR_X + SCR_W - 40), rect.y + scale.h(8)))
 
         # Hint at bottom
         f_hint = get_font(scale.fs(14), light=True)
         txt = f_hint.render("Connect to InterNIC to search for more servers", True, TEXT_DIM)
-        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(940)))
+        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(960)))
 
     def _handle_bookmarks_event(self, event, scale, state):
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
 
         links = state.links
-        row_h = 60
-        start_y = CONTENT_Y + 100
+        row_h = 42
+        start_y = CONTENT_Y + 110
 
         for i, link in enumerate(links):
-            y = start_y + i * row_h
-            if y > 880:
+            y = start_y + i * (row_h + 8)
+            if y > 920:
                 break
-            rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
+            rect = scale.rect(SCR_X, y, SCR_W, row_h)
             if rect.collidepoint(event.pos):
                 self.connect_to(link["ip"], link.get("name", ""))
                 return
@@ -291,19 +291,33 @@ class BrowserView:
         back_r = scale.rect(BACK_X, CONTENT_Y + 5, 40, 40)
         mouse = pygame.mouse.get_pos()
         bh = back_r.collidepoint(mouse)
+        if bh:
+            # Pulsing glow
+            pulse = (math.sin(time.time() * 8) + 1) / 2
+            glow_r = scale.w(20 + 4 * pulse)
+            glow = pygame.Surface((glow_r*2, glow_r*2), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (*PRIMARY, 40), (glow_r, glow_r), glow_r)
+            surface.blit(glow, (back_r.centerx - glow_r, back_r.centery - glow_r))
+            
         f_arrow = get_font(scale.fs(28))
         txt = f_arrow.render("<", True, TEXT_WHITE if bh else SECONDARY)
         surface.blit(txt, (back_r.x + 8, back_r.y + 2))
-        if bh:
-            pygame.draw.circle(surface, (*PRIMARY, 30), back_r.center, scale.w(20))
+        pygame.draw.rect(surface, (*SECONDARY, 80), back_r, 1, border_radius=scale.w(20))
 
         # Disconnect top-right
-        disc_r = scale.rect(SCR_X + SCR_W - 120, CONTENT_Y, 120, 28)
+        disc_r = scale.rect(SCR_X + SCR_W - 120, CONTENT_Y, 120, 32)
         dh = disc_r.collidepoint(mouse)
-        c = ALERT if dh else (80, 20, 20)
-        pygame.draw.rect(surface, c, disc_r, 0 if dh else 1, border_radius=3)
-        txt = f_small.render("Disconnect", True, (255, 255, 255) if dh else ALERT)
-        surface.blit(txt, (disc_r.x + 12, disc_r.y + 5))
+        c = ALERT if dh else (100, 30, 30)
+        # Beveled disconnect button
+        pygame.draw.rect(surface, (20, 10, 10), disc_r, border_radius=3)
+        pygame.draw.rect(surface, c, disc_r, 1, border_radius=3)
+        if dh:
+            s = pygame.Surface((disc_r.w, disc_r.h), pygame.SRCALPHA)
+            s.fill((*ALERT, 40))
+            surface.blit(s, disc_r.topleft)
+
+        txt = f_small.render("DISCONNECT", True, (255, 255, 255) if dh else ALERT)
+        surface.blit(txt, (disc_r.centerx - txt.get_width() // 2, disc_r.centery - txt.get_height() // 2))
 
         # Title + Subtitle
         # When maintitle is generic ("Uplink"), promote subtitle to be the main title
@@ -670,6 +684,7 @@ class BrowserView:
         f_ip = get_font(scale.fs(14), light=True)
         f_label = get_font(scale.fs(16), light=True)
         mouse = pygame.mouse.get_pos()
+        row_h = 36
 
         # Search/filter box
         self._search_input.dy = cy - 5
@@ -679,7 +694,7 @@ class BrowserView:
         self._search_input.placeholder = "Filter..."
         self._search_input.size = 16
         self._search_input.draw(surface, scale)
-        cy += 35
+        cy += 40
 
         # Filter links
         links = state.screen_links
@@ -689,32 +704,33 @@ class BrowserView:
 
         # Count display
         txt = f_label.render(f"{len(links)} servers", True, TEXT_DIM)
-        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy - 30)))
+        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy - 34)))
 
         for i, link in enumerate(links):
-            y = cy + i * 32
+            y = cy + i * row_h
             if y > 960:
                 break
-            rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 28)
+            rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
             hovered = rect.collidepoint(mouse)
 
             # Zebra stripe
             if i % 2 == 1:
                 alt = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                alt.fill((180, 210, 255, 20))
+                alt.fill((180, 210, 255, 12))
                 surface.blit(alt, rect.topleft)
             if hovered:
                 glow = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
-                glow.fill((*PRIMARY, 15))
+                glow.fill((*PRIMARY, 25))
                 surface.blit(glow, rect.topleft)
+                pygame.draw.rect(surface, (*SECONDARY, 150), rect, 1)
 
             name = link.get("name", "")
             ip = link.get("ip", "")
             # Server name on left, IP right-aligned on same line
             txt = f_name.render(name[:45], True, TEXT_WHITE if hovered else PRIMARY)
-            surface.blit(txt, (rect.x + 10, rect.y + 3))
+            surface.blit(txt, (rect.x + 10, rect.y + 4))
             txt = f_ip.render(ip, True, SECONDARY if hovered else TEXT_DIM)
-            surface.blit(txt, (rect.right - txt.get_width() - 10, rect.y + 5))
+            surface.blit(txt, (rect.right - txt.get_width() - 10, rect.y + 7))
 
     def _draw_message(self, surface, scale, state, cy):
         f_body = get_font(scale.fs(18), light=True)
@@ -1191,55 +1207,56 @@ class BrowserView:
         f_header = get_font(scale.fs(16))
         f_row = get_font(scale.fs(15), light=True)
         f_small = get_font(scale.fs(13), light=True)
-        max_vis = 20
-        row_h = 28
+        max_vis = 15
+        row_h = 36
 
         # Column headers
         headers = [("Filename", 0), ("Size", 500), ("Encrypted", 600), ("Compressed", 730)]
         for h, hx in headers:
             txt = f_header.render(h, True, TEXT_WHITE)
             surface.blit(txt, (scale.x(SCR_X + hx), scale.y(cy)))
-        cy += 24
+        cy += 28
         pygame.draw.line(surface, SECONDARY,
                          (scale.x(SCR_X), scale.y(cy)),
                          (scale.x(SCR_X + SCR_W), scale.y(cy)), max(1, scale.h(1)))
-        cy += 6
+        cy += 8
 
         visible = files[self._scroll:self._scroll + max_vis]
         for i, f in enumerate(visible):
             y = cy + i * row_h
-            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 2)
+            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
             hovered = row_rect.collidepoint(mouse)
 
             # Alternating rows
             if i % 2 == 1:
                 alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                alt.fill((255, 255, 255, 8))
+                alt.fill((255, 255, 255, 12))
                 surface.blit(alt, row_rect.topleft)
             if hovered:
                 sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                sel.fill((*PRIMARY, 20))
+                sel.fill((*PRIMARY, 30))
                 surface.blit(sel, row_rect.topleft)
+                pygame.draw.rect(surface, (*SECONDARY, 150), row_rect, 1)
 
             color = TEXT_WHITE if hovered else (140, 170, 200)
             txt = f_row.render(f["title"][:40], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 4), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 6)))
             txt = f_row.render(f"{f['size']} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 6)))
             if f.get("encrypted"):
                 txt = f_row.render("Level " + str(f["encrypted"]), True, ALERT)
-                surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 4)))
+                surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 6)))
             if f.get("compressed"):
                 txt = f_row.render("Level " + str(f["compressed"]), True, SECONDARY)
-                surface.blit(txt, (scale.x(SCR_X + 730), scale.y(y + 4)))
+                surface.blit(txt, (scale.x(SCR_X + 730), scale.y(y + 6)))
 
             # Right-click hint
             if hovered:
                 txt = f_small.render("Right-click for actions", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 180), scale.y(y + 6)))
+                surface.blit(txt, (scale.x(SCR_X + SCR_W - 180), scale.y(y + 8)))
 
         # Scroll indicator
-        bottom_y = cy + min(len(visible), max_vis) * row_h + 4
+        bottom_y = cy + min(len(visible), max_vis) * row_h + 8
         if len(files) > max_vis:
             txt = f_small.render(f"{self._scroll + 1}-{min(self._scroll + max_vis, len(files))} of {len(files)} files", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(bottom_y)))
@@ -1251,34 +1268,35 @@ class BrowserView:
         f_header = get_font(scale.fs(16))
         f_row = get_font(scale.fs(14), light=True)
         f_small = get_font(scale.fs(13), light=True)
-        max_vis = 22
-        row_h = 26
+        max_vis = 16
+        row_h = 34
 
         # Column headers
         headers = [("Date", 0), ("From IP", 200), ("User", 400), ("Action", 560)]
         for h, hx in headers:
             txt = f_header.render(h, True, TEXT_WHITE)
             surface.blit(txt, (scale.x(SCR_X + hx), scale.y(cy)))
-        cy += 22
+        cy += 28
         pygame.draw.line(surface, SECONDARY,
                          (scale.x(SCR_X), scale.y(cy)),
                          (scale.x(SCR_X + SCR_W), scale.y(cy)), max(1, scale.h(1)))
-        cy += 4
+        cy += 8
 
         visible = logs[self._scroll:self._scroll + max_vis]
         for i, log in enumerate(visible):
             y = cy + i * row_h
-            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 2)
+            row_rect = scale.rect(SCR_X, y, SCR_W, row_h - 4)
             hovered = row_rect.collidepoint(mouse)
 
             if i % 2 == 1:
                 alt = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                alt.fill((255, 255, 255, 8))
+                alt.fill((255, 255, 255, 12))
                 surface.blit(alt, row_rect.topleft)
             if hovered:
                 sel = pygame.Surface((row_rect.w, row_rect.h), pygame.SRCALPHA)
-                sel.fill((*PRIMARY, 20))
+                sel.fill((*PRIMARY, 30))
                 surface.blit(sel, row_rect.topleft)
+                pygame.draw.rect(surface, (*SECONDARY, 150), row_rect, 1)
 
             color = TEXT_WHITE if hovered else (140, 170, 200)
             # Suspicious logs in yellow/red
@@ -1287,26 +1305,27 @@ class BrowserView:
                 color = ALERT if sus >= 2 else (255, 200, 50)
 
             txt = f_row.render(log.get("date", "")[:18], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 4), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(y + 6)))
             txt = f_row.render(log.get("from_ip", "")[:18], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 200), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 200), scale.y(y + 6)))
             txt = f_row.render(log.get("from_name", "")[:14], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 400), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 400), scale.y(y + 6)))
             txt = f_row.render(log.get("data1", "")[:30], True, color)
-            surface.blit(txt, (scale.x(SCR_X + 560), scale.y(y + 4)))
+            surface.blit(txt, (scale.x(SCR_X + 560), scale.y(y + 6)))
 
             if hovered:
                 txt = f_small.render("Right-click", True, TEXT_DIM)
-                surface.blit(txt, (scale.x(SCR_X + SCR_W - 100), scale.y(y + 6)))
+                surface.blit(txt, (scale.x(SCR_X + SCR_W - 100), scale.y(y + 8)))
 
         # Scroll indicator
-        bottom_y = cy + min(len(visible), max_vis) * row_h + 4
+        bottom_y = cy + min(len(visible), max_vis) * row_h + 8
         if len(logs) > max_vis:
             txt = f_small.render(f"{self._scroll + 1}-{min(self._scroll + max_vis, len(logs))} of {len(logs)} logs", True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X), scale.y(bottom_y)))
 
         # Context menu
         self._draw_context_menu(surface, scale)
+
 
     # ================================================================
     # CONTEXT MENU (right-click)
@@ -1668,12 +1687,13 @@ class BrowserView:
             query = self._search_input.text.strip().lower()
             if query:
                 links = [l for l in links if query in l.get("name", "").lower() or query in l.get("ip", "").lower()]
-            link_cy = cy + 35  # after search box
+            link_cy = cy + 40  # after search box
+            row_h = 36
             for i, link in enumerate(links):
-                y = link_cy + i * 32
+                y = link_cy + i * row_h
                 if y > 960:
                     break
-                rect = scale.rect(SCR_X + 10, y, SCR_W - 20, 28)
+                rect = scale.rect(SCR_X + 10, y, SCR_W - 20, row_h - 4)
                 if rect.collidepoint(event.pos):
                     ip = link.get("ip", "")
                     if ip:

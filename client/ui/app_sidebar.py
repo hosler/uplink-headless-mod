@@ -8,7 +8,7 @@ import audio
 
 # Sidebar layout
 SIDEBAR_X = 10
-SIDEBAR_Y = TOPBAR_H + TAB_H + 20
+SIDEBAR_Y = TOPBAR_H + TAB_H + 45
 SIDEBAR_W = 180
 SLOT_H = 52
 
@@ -176,9 +176,12 @@ class AppSidebar:
             if pulse < 0.5:
                 pygame.draw.polygon(surface, TEXT_WHITE, pts, 1)
 
-            # Icon text
+            # Icon text with box
+            icon_box = pygame.Rect(slot_rect.x + scale.w(24), slot_rect.y + scale.h(3), scale.w(30), scale.h(28))
+            pygame.draw.rect(surface, (*app.color, 40), icon_box)
+            pygame.draw.rect(surface, app.color, icon_box, 1)
             txt = f_icon.render(app.icon, True, TEXT_WHITE if hovered else app.color)
-            surface.blit(txt, (slot_rect.x + scale.w(28), slot_rect.y + scale.h(4)))
+            surface.blit(txt, (icon_box.centerx - txt.get_width() // 2, icon_box.centery - txt.get_height() // 2))
 
             # Title
             txt = f_title.render(app.title[:16].upper(), True, TEXT_WHITE)
@@ -233,10 +236,13 @@ class AppSidebar:
             else:
                 pygame.draw.rect(surface, (*SECONDARY, 60), slot_rect, 1)
 
-            color = tool_info.get("color", SECONDARY)
-            # Icon
+            color = tool_info.get("icon_color", tool_info.get("color", SECONDARY))
+            # Icon with box
+            icon_box = pygame.Rect(slot_rect.x + scale.w(24), slot_rect.y + scale.h(3), scale.w(30), scale.h(28))
+            pygame.draw.rect(surface, (*color, 25), icon_box)
+            pygame.draw.rect(surface, (*color, 80), icon_box, 1)
             txt = f_icon.render(tool_info.get("icon", "??"), True, color if hovered else TEXT_DIM)
-            surface.blit(txt, (slot_rect.x + scale.w(28), slot_rect.y + scale.h(4)))
+            surface.blit(txt, (icon_box.centerx - txt.get_width() // 2, icon_box.centery - txt.get_height() // 2))
 
             # Title
             txt = f_title.render(title[:16].upper(), True, TEXT_WHITE if hovered else TEXT_DIM)

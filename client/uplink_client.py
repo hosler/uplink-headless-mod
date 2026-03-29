@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pygame
 from network import Network
 from ui.theme import Scale, draw_gradient, invalidate_gradient, PRIMARY, SECONDARY, ALERT, \
-    TEXT_WHITE, TEXT_DIM, PANEL_BG, TOPBAR_H, TAB_H, STATUSBAR_H, DESIGN_W, DESIGN_H, get_font
+    TEXT_WHITE, TEXT_DIM, PANEL_BG, TOPBAR_H, TAB_H, STATUSBAR_H, DESIGN_W, DESIGN_H, get_font, draw_scanlines
 from ui.login_screen import LoginScreen
 from ui.widgets import Label, Button
 from ui.map_view import MapView
