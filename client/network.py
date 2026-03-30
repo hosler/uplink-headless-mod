@@ -32,6 +32,7 @@ class GameState:
     screen_links: list = field(default_factory=list)
     credentials: list = field(default_factory=list)
     lan_data: dict = field(default_factory=dict)
+    news: list = field(default_factory=list)
 
 
 class Network:
@@ -181,6 +182,8 @@ class Network:
             self.state.bbs_missions = msg.get("missions", [])
         elif t == "inbox":
             self.state.inbox = msg.get("messages", [])
+        elif t == "news":
+            self.state.news = msg.get("stories", [])
         elif t == "balance":
             self.state.balance = msg.get("balance", 0)
         elif t == "gateway_info":
@@ -255,6 +258,9 @@ class Network:
 
     def get_inbox(self):
         self.send({"cmd": "inbox"})
+
+    def get_news(self):
+        self.send({"cmd": "news"})
 
     def get_balance(self):
         self.send({"cmd": "balance"})

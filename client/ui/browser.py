@@ -47,6 +47,9 @@ class BrowserView:
         # LAN view
         self._lan_requested = False
         self._lan_selected = -1  # selected LAN system index
+        # News view
+        self._news_requested = False
+        self._news_selected = -1
         # Active operation (file copy, log delete, etc.)
         self._operation = None      # {type, label, start, duration, on_complete}
         self._dialog_inputs = {}    # name -> TextInput
@@ -91,7 +94,10 @@ class BrowserView:
                 state.remote_logs = []
                 state.screen_links = []
                 state.lan_data = {}
+                state.news = []
                 self._lan_requested = False
+                self._news_requested = False
+                self._news_selected = -1
             if not self._files_requested:
                 subtitle = state.screen_data.get("subtitle", "").lower()
                 if state.screen_type in ("GenericScreen", "unknown") and ("file" in subtitle or "server" in subtitle):
@@ -107,6 +113,12 @@ class BrowserView:
             if not self._lan_requested and state.screen_type in ("LanScreen", "unknown", "none"):
                 self.net.lan_scan()
                 self._lan_requested = True
+            # Request news data when on a news screen
+            if not self._news_requested:
+                subtitle = state.screen_data.get("subtitle", "").lower()
+                if "news" in subtitle:
+                    self.net.get_news()
+                    self._news_requested = True
 
     def on_screen_change(self):
         self._pw_input = None
@@ -1043,8 +1055,11 @@ class BrowserView:
         has_security = any(n.startswith("securityscreen_system") for n in btn_names)
         has_console = any(n == "console_typehere" for n in btn_names)
 
-        is_file_screen = "file" in subtitle or "server" in subtitle
-        if files and is_file_screen:
+        is_news = "news" in subtitle
+        is_file_screen = ("file" in subtitle or "server" in subtitle) and not is_news
+        if is_news and state.news:
+            self._draw_news(surface, scale, state, cy, mouse)
+        elif files and is_file_screen:
             self._draw_file_server(surface, scale, state, cy, files, mouse)
         elif has_records:
             self._draw_records(surface, scale, state, cy)
@@ -1061,6 +1076,123 @@ class BrowserView:
             sub = state.screen_data.get("subtitle", "Unknown")
             txt = f_info.render(sub, True, TEXT_DIM)
             surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
+
+    def _draw_news(self, surface, scale, state, cy, mouse):
+        """Render News screen — two-panel layout: story list + detail."""
+        stories = state.news
+        if not stories:
+            f = get_font(scale.fs(18), light=True)
+            txt = f.render("No news stories available.", True, TEXT_DIM)
+            surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
+            return
+
+        f_head = get_font(scale.fs(16))
+        f_date = get_font(scale.fs(13), light=True)
+        f_preview = get_font(scale.fs(13), light=True)
+        f_body = get_font(scale.fs(15), light=True)
+        f_header = get_font(scale.fs(14))
+
+        list_w = 550
+        detail_x = SCR_X + list_w + 30
+        detail_w = SCR_W - list_w - 30
+
+        # Header
+        txt = f_header.render("N E W S   F E E D", True, PRIMARY)
+        surface.blit(txt, (scale.x(SCR_X + 10), scale.y(cy)))
+        cy += 28
+
+        # Story list (left panel)
+        row_h = 48
+        max_vis = min(14, len(stories))
+        visible = stories[self._scroll:self._scroll + max_vis]
+        for i, story in enumerate(visible):
+            idx = self._scroll + i
+            y = cy + i * row_h
+            rect = scale.rect(SCR_X, y, list_w, row_h - 2)
+            hovered = rect.collidepoint(mouse)
+            selected = idx == self._news_selected
+
+            # Row background
+            if selected:
+                s = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                s.fill((*PRIMARY, 35))
+                surface.blit(s, rect.topleft)
+            elif hovered:
+                s = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                s.fill((*PRIMARY, 15))
+                surface.blit(s, rect.topleft)
+            elif i % 2 == 1:
+                s = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+                s.fill((180, 210, 255, 15))
+                surface.blit(s, rect.topleft)
+
+            pygame.draw.rect(surface, (*SECONDARY, 60), rect, 1)
+
+            # Date
+            date = story.get("date", "")
+            txt = f_date.render(date, True, TEXT_DIM)
+            surface.blit(txt, (rect.x + scale.w(8), rect.y + scale.h(4)))
+
+            # Headline
+            headline = story.get("headline", "")[:60]
+            color = TEXT_WHITE if (selected or hovered) else PRIMARY
+            txt = f_head.render(headline, True, color)
+            surface.blit(txt, (rect.x + scale.w(8), rect.y + scale.h(20)))
+
+        # Detail panel (right side)
+        panel_rect = scale.rect(detail_x, cy, detail_w, max_vis * row_h)
+        bg = pygame.Surface((panel_rect.w, panel_rect.h), pygame.SRCALPHA)
+        bg.fill((*PANEL_BG, 160))
+        surface.blit(bg, panel_rect.topleft)
+        pygame.draw.rect(surface, SECONDARY, panel_rect, 1)
+
+        if self._news_selected >= 0 and self._news_selected < len(stories):
+            story = stories[self._news_selected]
+            # Headline
+            txt = f_head.render(story.get("headline", ""), True, PRIMARY)
+            surface.blit(txt, (panel_rect.x + scale.w(12), panel_rect.y + scale.h(10)))
+            # Date
+            txt = f_date.render(story.get("date", ""), True, SECONDARY)
+            surface.blit(txt, (panel_rect.x + scale.w(12), panel_rect.y + scale.h(30)))
+            # Separator
+            sep_y = panel_rect.y + scale.h(48)
+            pygame.draw.line(surface, SECONDARY, (panel_rect.x + 10, sep_y),
+                             (panel_rect.x + panel_rect.w - 10, sep_y), 1)
+            # Body text with word wrap
+            details = story.get("details", "")
+            if details:
+                lines = []
+                for para in details.split("\n"):
+                    if not para.strip():
+                        lines.append("")
+                        continue
+                    words = para.split()
+                    line = ""
+                    for w in words:
+                        test = f"{line} {w}".strip()
+                        if f_body.size(test)[0] > panel_rect.w - scale.w(24):
+                            lines.append(line)
+                            line = w
+                        else:
+                            line = test
+                    if line:
+                        lines.append(line)
+                ty = sep_y + scale.h(10)
+                for line in lines:
+                    if ty > panel_rect.y + panel_rect.h - scale.h(20):
+                        break
+                    if line == "":
+                        ty += scale.h(8)
+                        continue
+                    txt = f_body.render(line, True, TEXT_WHITE)
+                    surface.blit(txt, (panel_rect.x + scale.w(12), ty))
+                    ty += scale.h(20)
+        else:
+            f = get_font(scale.fs(16), light=True)
+            txt = f.render("Select a story to read", True, TEXT_DIM)
+            cx = panel_rect.centerx - txt.get_width() // 2
+            cy_mid = panel_rect.centery - txt.get_height() // 2
+            surface.blit(txt, (cx, cy_mid))
 
     def _draw_records(self, surface, scale, state, cy):
         """Render Records screen from recordscreen_title/value buttons."""
@@ -1812,7 +1944,24 @@ class BrowserView:
                         audio.play_sfx("popup")
                     return
 
-        # Scroll wheel for file/log lists
+        # News story click
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and state.news:
+            subtitle_lower = sd.get("subtitle", "").lower()
+            if "news" in subtitle_lower:
+                # Compute cy to match _draw_screen → _draw_generic → _draw_news
+                # Title is always shown for News Server, subtitle suppressed for GenericScreen
+                news_cy = CONTENT_Y + 46 + 24 + 28  # title + separator + "NEWS FEED" header
+                row_h = 48
+                max_vis = min(14, len(state.news))
+                for i in range(max_vis):
+                    idx = self._scroll + i
+                    y = news_cy + i * row_h
+                    rect = scale.rect(SCR_X, y, 550, row_h - 2)
+                    if rect.collidepoint(event.pos):
+                        self._news_selected = idx
+                        return
+
+        # Scroll wheel for file/log/news lists
         if event.type == pygame.MOUSEBUTTONDOWN and st in ("GenericScreen", "unknown", "LogScreen"):
             if st == "LogScreen":
                 items = state.remote_logs

@@ -50,6 +50,7 @@
 #include "world/company/sale.h"
 #include "world/generator/missiongenerator.h"
 #include "world/company/companyuplink.h"
+#include "world/company/news.h"
 #include "world/message.h"
 
 #include "interface/localinterface/localinterface.h"
@@ -847,6 +848,34 @@ static void handle_command ( const char *json, ClientConn *conn )
                 json_escape(msg->GetSubject() ? msg->GetSubject() : "").c_str(),
                 json_escape(msg->GetBody() ? msg->GetBody() : "").c_str(),
                 msg->GetData() ? "true" : "false");
+            s += buf;
+        }
+        s += "]}";
+        send_line(client_fd, s);
+    }
+
+    // ---- Semantic: News feed ----
+
+    else if ( strcmp(cmd, "news") == 0 ) {
+        if ( !game || !game->IsRunning() ) { send_response(client_fd,"error","no game"); return; }
+        CompanyUplink *cu = (CompanyUplink*)game->GetWorld()->GetCompany("Uplink");
+        if ( !cu ) { send_response(client_fd,"error","no company"); return; }
+
+        std::string s = "{\"type\":\"news\",\"stories\":[";
+        for ( int i = cu->news.Size() - 1; i >= 0; i-- ) {
+            News *n = cu->news.GetData(i);
+            if ( !n ) continue;
+            if ( s.back() != '[' ) s += ",";
+            char buf[2048];
+            char *det = n->GetDetails();
+            snprintf(buf, sizeof(buf),
+                "{\"index\":%d,\"headline\":\"%s\",\"date\":\"%s\","
+                "\"details\":\"%s\",\"type\":%d}",
+                i,
+                json_escape(n->headline).c_str(),
+                json_escape(n->date.GetShortString()).c_str(),
+                json_escape(det ? det : "").c_str(),
+                n->NEWSTYPE);
             s += buf;
         }
         s += "]}";
