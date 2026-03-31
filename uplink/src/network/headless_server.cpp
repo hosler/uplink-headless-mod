@@ -516,6 +516,27 @@ static void handle_command ( const char *json, ClientConn *conn )
         send_line ( client_fd, s );
     }
 
+    else if ( strcmp(cmd, "add_link") == 0 ) {
+        // Add a server IP to the player's bookmarks
+        if ( !game || !game->IsRunning() ) { send_response(client_fd,"error","no game"); return; }
+        char ip[64];
+        if ( !extract_str(json, "ip", ip, sizeof(ip)) ) {
+            send_response(client_fd,"error","missing ip"); return;
+        }
+        Player *p = game->GetWorld()->GetPlayer();
+        VLocation *vl = game->GetWorld()->GetVLocation(ip);
+        if ( !vl ) { send_response(client_fd,"error","unknown ip"); return; }
+        if ( p->HasLink(ip) ) {
+            send_response(client_fd,"ok","already linked");
+        } else {
+            p->GiveLink(ip);
+            Computer *comp = vl->GetComputer();
+            char detail[256];
+            snprintf(detail, sizeof(detail), "added %s", comp ? comp->name : ip);
+            send_response(client_fd,"ok",detail);
+        }
+    }
+
     else if ( strcmp(cmd, "missions") == 0 ) {
         // Get list of active missions with full details
         if ( !game || !game->IsRunning() ) { send_response(client_fd,"error","no game"); return; }

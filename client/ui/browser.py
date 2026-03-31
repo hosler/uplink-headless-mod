@@ -64,6 +64,7 @@ class BrowserView:
         self._connect_name = name
         self._connect_start = time.time()
         audio.play_sfx("bounce")
+        self.net.add_link(ip)  # Bookmark the server
         self.net.server_connect(ip)
 
     def update(self, state):

@@ -250,6 +250,9 @@ class Network:
     def get_links(self):
         self.send({"cmd": "links"})
 
+    def add_link(self, ip):
+        self.send({"cmd": "add_link", "ip": ip}, refresh_state=True)
+
     def get_missions(self):
         self.send({"cmd": "missions"})
 
