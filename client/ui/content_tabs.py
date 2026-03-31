@@ -414,7 +414,7 @@ class EmailView:
                     return
 
             # Message list clicks
-            cy = CONTENT_Y + 42 + 28
+            cy = CONTENT_Y + 42 + 44
             list_w = 560
             msgs = state.inbox
             max_vis = 20
@@ -861,7 +861,7 @@ class MissionsView:
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            cy = CONTENT_Y + 42 + 28  # after title + header
+            cy = CONTENT_Y + 42 + 44  # after title + header
             list_w = 560
 
             # Mission list clicks
@@ -978,7 +978,7 @@ class BBSView:
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            cy = CONTENT_Y + 42 + 28  # after title + header
+            cy = CONTENT_Y + 42 + 44  # after title + header
             max_vis = 18
             missions = state.bbs_missions
             visible = missions[self.scroll:self.scroll + max_vis]
@@ -1032,12 +1032,12 @@ class SoftwareView:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 600),
-                   ("Size", SCR_X + 750), ("Cost", SCR_X + 900), ("", SCR_X + SCR_W - 120)]
+        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 500),
+                   ("Size", SCR_X + 620), ("Cost", SCR_X + 740), ("", SCR_X + SCR_W - 130)]
         cy = _draw_header_row(surface, scale, cy, columns)
 
         f_row = get_font(scale.fs(15), light=True)
-        f_name = get_font(scale.fs(14))
+        f_name = get_font(scale.fs(15))
         max_vis = 18
         visible = sw_list[self.scroll:self.scroll + max_vis]
 
@@ -1047,23 +1047,24 @@ class SoftwareView:
             hovered = row_rect.collidepoint(mouse)
             _draw_data_row(surface, scale, y, hovered, alt=i % 2 == 1)
 
-            color = TEXT_WHITE if hovered else TEXT_DIM
+            color = TEXT_WHITE if hovered else PRIMARY
 
-            txt = f_name.render(sw.get("title", ""), True, color)
-            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 7)))
+            title = sw.get("title", "")[:30]
+            txt = f_name.render(title, True, color)
+            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 8)))
 
-            txt = f_row.render(f"v{sw.get('version', 1)}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 600), scale.y(y + 7)))
+            txt = f_row.render(f"v{sw.get('version', 1):.0f}", True, SECONDARY)
+            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 8)))
 
             txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 750), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 620), scale.y(y + 8)))
 
             cost = sw.get("cost", 0)
             affordable = state.balance >= cost
             txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 900), scale.y(y + 7)))
+            surface.blit(txt, (scale.x(SCR_X + 740), scale.y(y + 8)))
 
-            _draw_button(surface, scale, SCR_X + SCR_W - 120, y + 3, 100, 22, "BUY", mouse, enabled=affordable)
+            _draw_button(surface, scale, SCR_X + SCR_W - 130, y + 3, 110, 26, "BUY", mouse, enabled=affordable)
 
         if len(sw_list) > max_vis:
             f_sm = get_font(scale.fs(13), light=True)
@@ -1073,7 +1074,7 @@ class SoftwareView:
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            cy = CONTENT_Y + 42 + 28
+            cy = CONTENT_Y + 42 + 44
             max_vis = 18
             sw_list = state.software_list
             visible = sw_list[self.scroll:self.scroll + max_vis]
@@ -1163,7 +1164,7 @@ class HardwareView:
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            cy = CONTENT_Y + 42 + 28
+            cy = CONTENT_Y + 42 + 44
             max_vis = 18
             hw_list = state.hardware_list
             visible = hw_list[self.scroll:self.scroll + max_vis]
