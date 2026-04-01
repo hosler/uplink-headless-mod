@@ -1,0 +1,247 @@
+#:import dp kivy.metrics.dp
+#:import sp kivy.metrics.sp
+
+<GameScreen>:
+    topbar: topbar
+    tabbar: tabbar
+    statusbar: statusbar
+    content_area: content_area
+
+    GradientBg:
+        size: root.size
+        pos: root.pos
+
+    BoxLayout:
+        orientation: 'vertical'
+        size: root.size
+        pos: root.pos
+
+        # Top Bar
+        TopBar:
+            id: topbar
+            size_hint_y: None
+            height: dp(40)
+
+        # Tab Bar
+        TabBar:
+            id: tabbar
+            size_hint_y: None
+            height: dp(36)
+            orientation: 'horizontal'
+
+        # Content Area
+        FloatLayout:
+            id: content_area
+
+        # Status Bar
+        StatusBar:
+            id: statusbar
+            size_hint_y: None
+            height: dp(32)
+
+    # CRT scanlines overlay (on top of everything)
+    CRTOverlay:
+        size: root.size
+        pos: root.pos
+
+
+<TopBar>:
+    padding: [dp(15), 0]
+    spacing: dp(20)
+
+    canvas.before:
+        Color:
+            rgba: app.c_topbar_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: (*app.c_secondary[:3], 0.6)
+        Line:
+            points: [self.x, self.y, self.right, self.y]
+            width: 1
+
+    # Agent label + handle
+    Label:
+        text: 'AGENT:'
+        font_name: 'AeroMaticsLight'
+        font_size: sp(11)
+        color: app.c_secondary
+        size_hint_x: None
+        width: dp(50)
+    Label:
+        text: root.agent_handle.upper() if root.agent_handle else ''
+        font_name: 'AeroMatics'
+        font_size: sp(18)
+        color: app.c_primary
+        size_hint_x: None
+        width: dp(140)
+        text_size: self.size
+        shorten: True
+
+    # Host
+    Label:
+        text: 'HOST:'
+        font_name: 'AeroMaticsLight'
+        font_size: sp(11)
+        color: app.c_secondary
+        size_hint_x: None
+        width: dp(40)
+    Label:
+        text: root.remote_host if root.remote_host else ''
+        font_name: 'AeroMatics'
+        font_size: sp(18)
+        color: app.c_text_white
+        size_hint_x: None
+        width: dp(160)
+        text_size: self.size
+        shorten: True
+
+    # Screen title
+    Label:
+        text: root.screen_title.upper() if root.screen_title else ''
+        font_name: 'AeroMaticsLight'
+        font_size: sp(14)
+        color: app.c_text_dim
+        size_hint_x: 1
+
+    # Credits
+    Label:
+        text: 'CREDITS:'
+        font_name: 'AeroMaticsLight'
+        font_size: sp(11)
+        color: app.c_secondary
+        size_hint_x: None
+        width: dp(60)
+    Label:
+        text: '{:,}c'.format(int(root.balance))
+        font_name: 'AeroMatics'
+        font_size: sp(18)
+        color: app.c_success
+        size_hint_x: None
+        width: dp(100)
+        text_size: self.size
+        halign: 'left'
+
+    # Speed buttons
+    HackerButton:
+        text: '||'
+        size_hint: (None, 1)
+        width: dp(40)
+        font_size: sp(13)
+        button_color: app.c_primary if root.speed == 0 else app.c_text_dim
+        on_release: root.set_speed(0)
+    HackerButton:
+        text: '>'
+        size_hint: (None, 1)
+        width: dp(32)
+        font_size: sp(13)
+        button_color: app.c_primary if root.speed == 1 else app.c_text_dim
+        on_release: root.set_speed(1)
+    HackerButton:
+        text: '>>'
+        size_hint: (None, 1)
+        width: dp(36)
+        font_size: sp(13)
+        button_color: app.c_primary if root.speed == 2 else app.c_text_dim
+        on_release: root.set_speed(2)
+    HackerButton:
+        text: '>>>'
+        size_hint: (None, 1)
+        width: dp(40)
+        font_size: sp(13)
+        button_color: app.c_primary if root.speed == 3 else app.c_text_dim
+        on_release: root.set_speed(3)
+
+    # Date
+    Label:
+        text: root.game_date.upper() if root.game_date else ''
+        font_name: 'AeroMaticsLight'
+        font_size: sp(14)
+        color: app.c_text_dim
+        size_hint_x: None
+        width: dp(160)
+        text_size: self.size
+        halign: 'right'
+
+
+<TabBar>:
+    padding: [dp(5), 0]
+    spacing: dp(2)
+
+    canvas.before:
+        Color:
+            rgba: (11/255, 24/255, 38/255, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: (*app.c_secondary[:3], 0.4)
+        Line:
+            points: [self.x, self.y, self.right, self.y]
+            width: 1
+
+
+<StatusBar>:
+    padding: [dp(15), 0]
+    spacing: dp(15)
+
+    canvas.before:
+        Color:
+            rgba: app.c_topbar_bg
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: (*app.c_secondary[:3], 0.6)
+        Line:
+            points: [self.x, self.top, self.right, self.top]
+            width: 1
+
+    # Chain
+    Label:
+        text: 'CHAIN:'
+        font_name: 'AeroMaticsLight'
+        font_size: sp(11)
+        color: app.c_secondary
+        size_hint_x: None
+        width: dp(45)
+    Label:
+        text: root.chain_text
+        font_name: 'AeroMaticsLight'
+        font_size: sp(14)
+        color: app.c_text_dim
+        size_hint_x: 1
+        text_size: self.size
+        shorten: True
+        halign: 'left'
+
+    # Status message (centered)
+    Label:
+        text: ('DATA: ' + root.status_message.upper()) if root.status_message else ''
+        font_name: 'AeroMaticsLight'
+        font_size: sp(14)
+        color: app.c_primary
+        size_hint_x: 1
+        halign: 'center'
+
+    # Trace bar
+    HackerProgressBar:
+        size_hint: (None, None)
+        width: dp(200)
+        height: dp(16)
+        pos_hint: {'center_y': 0.5}
+        value: root.trace_progress
+        auto_color: 1
+        opacity: 1 if root.trace_active else 0
+
+    # Version
+    Label:
+        text: 'UPLINK HEADLESS MOD v2.0'
+        font_name: 'AeroMaticsLight'
+        font_size: sp(11)
+        color: (*app.c_secondary[:3], 0.5)
+        size_hint_x: None
+        width: dp(180)
+        halign: 'right'
+        text_size: self.size
