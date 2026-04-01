@@ -1005,16 +1005,39 @@ class BBSView:
 # ============================================================================
 
 class SoftwareView:
+    CARD_W = 420
+    CARD_H = 110
+    COLS = 3
+    CARDS_PER_PAGE = 12  # 3 cols x 4 rows
+
     def __init__(self, net, statusbar):
         self.net = net
         self.statusbar = statusbar
         self.scroll = 0
         self._data_requested = False
+        self._groups = []  # [(title, [versions...])]
+        self._selected_versions = {}  # title -> version index
+        self._card_rects = []  # [(rect, title, version_data)]
 
     def on_activate(self):
         self._data_requested = False
         self.net.get_software_list()
         self.net.get_balance()
+
+    def _build_groups(self, sw_list):
+        """Group software by title, each with sorted versions."""
+        by_title = {}
+        for sw in sw_list:
+            t = sw.get("title", "")
+            if t not in by_title:
+                by_title[t] = []
+            by_title[t].append(sw)
+        # Sort versions within each group
+        groups = []
+        for title in sorted(by_title.keys()):
+            versions = sorted(by_title[title], key=lambda x: x.get("version", 0))
+            groups.append((title, versions))
+        self._groups = groups
 
     def draw(self, surface, scale, state):
         if not self._data_requested:
@@ -1022,80 +1045,150 @@ class SoftwareView:
             self.net.get_software_list()
             self.net.get_balance()
 
+        if state.software_list and not self._groups:
+            self._build_groups(state.software_list)
+
         mouse = pygame.mouse.get_pos()
         cy = CONTENT_Y
 
-        cy = _draw_tab_title(surface, scale, cy, "S O F T W A R E   S A L E S", balance=state.balance)
+        cy = _draw_tab_title(surface, scale, cy, "S O F T W A R E   M A R K E T", balance=state.balance)
 
-        sw_list = state.software_list
-        if not sw_list:
+        if not self._groups:
             _draw_empty_state(surface, scale, cy, "No software available.")
             return
 
-        columns = [("Title", SCR_X + 35), ("Version", SCR_X + 500),
-                   ("Size", SCR_X + 620), ("Cost", SCR_X + 740), ("", SCR_X + SCR_W - 130)]
-        cy = _draw_header_row(surface, scale, cy, columns)
+        f_title = get_font(scale.fs(16))
+        f_detail = get_font(scale.fs(13), light=True)
+        f_ver = get_font(scale.fs(12))
+        f_cost = get_font(scale.fs(18))
+        f_size = get_font(scale.fs(12), light=True)
 
-        f_row = get_font(scale.fs(15), light=True)
-        f_name = get_font(scale.fs(15))
-        max_vis = 18
-        visible = sw_list[self.scroll:self.scroll + max_vis]
+        groups = self._groups
+        total_pages = (len(groups) + self.CARDS_PER_PAGE - 1) // self.CARDS_PER_PAGE
+        start = self.scroll * self.COLS
+        visible = groups[start:start + self.CARDS_PER_PAGE]
 
-        for i, sw in enumerate(visible):
-            y = cy + i * ROW_H
-            row_rect = scale.rect(SCR_X, y, SCR_W, ROW_H - 2)
-            hovered = row_rect.collidepoint(mouse)
-            _draw_data_row(surface, scale, y, hovered, alt=i % 2 == 1)
+        self._card_rects = []
+        card_start_y = cy + 10
+        col_gap = 20
+        total_w = self.COLS * self.CARD_W + (self.COLS - 1) * col_gap
+        base_x = SCR_X + (SCR_W - total_w) // 2
 
-            color = TEXT_WHITE if hovered else PRIMARY
+        for idx, (title, versions) in enumerate(visible):
+            col = idx % self.COLS
+            row = idx // self.COLS
+            cx = base_x + col * (self.CARD_W + col_gap)
+            card_y = card_start_y + row * (self.CARD_H + 12)
 
-            title = sw.get("title", "")[:30]
-            txt = f_name.render(title, True, color)
-            surface.blit(txt, (scale.x(SCR_X + 35), scale.y(y + 8)))
-
-            txt = f_row.render(f"v{sw.get('version', 1):.0f}", True, SECONDARY)
-            surface.blit(txt, (scale.x(SCR_X + 500), scale.y(y + 8)))
-
-            txt = f_row.render(f"{sw.get('size', 0)} GQ", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X + 620), scale.y(y + 8)))
-
+            # Selected version for this title
+            ver_idx = self._selected_versions.get(title, len(versions) - 1)
+            ver_idx = min(ver_idx, len(versions) - 1)
+            sw = versions[ver_idx]
             cost = sw.get("cost", 0)
+            size = sw.get("size", 0)
             affordable = state.balance >= cost
-            txt = f_row.render(f"${cost:,}", True, SUCCESS if affordable else ALERT)
-            surface.blit(txt, (scale.x(SCR_X + 740), scale.y(y + 8)))
 
-            _draw_button(surface, scale, SCR_X + SCR_W - 130, y + 3, 110, 26, "BUY", mouse, enabled=affordable)
+            rect = scale.rect(cx, card_y, self.CARD_W, self.CARD_H)
+            hovered = rect.collidepoint(mouse)
 
-        if len(sw_list) > max_vis:
-            f_sm = get_font(scale.fs(13), light=True)
-            txt = f_sm.render(f"{self.scroll + 1}-{min(self.scroll + max_vis, len(sw_list))} of {len(sw_list)}", True, TEXT_DIM)
-            surface.blit(txt, (scale.x(SCR_X), scale.y(cy + max_vis * ROW_H + 4)))
-            _draw_scrollbar(surface, scale, SCR_X + SCR_W - 8, cy, max_vis * ROW_H, self.scroll, len(sw_list), max_vis)
+            # Card background
+            bg = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
+            bg.fill((*PANEL_BG, 200) if not hovered else (*PRIMARY, 20))
+            surface.blit(bg, rect.topleft)
+            # Border
+            border_color = PRIMARY if hovered else (*SECONDARY, 100)
+            pygame.draw.rect(surface, border_color, rect, 1, border_radius=scale.w(3))
+
+            # Title
+            display_title = title.replace("_", " ")
+            txt = f_title.render(display_title, True, PRIMARY if not hovered else TEXT_WHITE)
+            surface.blit(txt, (rect.x + scale.w(10), rect.y + scale.h(8)))
+
+            # Size
+            txt = f_size.render(f"{size} GQ", True, TEXT_DIM)
+            surface.blit(txt, (rect.x + scale.w(10), rect.y + scale.h(30)))
+
+            # Version selector (right side)
+            ver_str = f"v{sw.get('version', 1):.0f}"
+            if len(versions) > 1:
+                ver_str += f" ({len(versions)})"
+            txt = f_ver.render(ver_str, True, SECONDARY)
+            ver_x = rect.right - txt.get_width() - scale.w(12)
+            surface.blit(txt, (ver_x, rect.y + scale.h(8)))
+
+            # Version dots (clickable indicators)
+            if len(versions) > 1:
+                dot_x = rect.right - scale.w(12)
+                for vi in range(len(versions)):
+                    dy = rect.y + scale.h(28) + vi * scale.h(10)
+                    color = PRIMARY if vi == ver_idx else (*SECONDARY, 120)
+                    pygame.draw.circle(surface, color, (dot_x, dy), scale.w(3))
+
+            # Cost + BUY
+            cost_str = f"${cost:,}"
+            txt = f_cost.render(cost_str, True, SUCCESS if affordable else ALERT)
+            surface.blit(txt, (rect.x + scale.w(10), rect.y + rect.h - scale.h(32)))
+
+            # BUY button
+            btn_w = scale.w(70)
+            btn_h = scale.h(24)
+            btn_x = rect.right - btn_w - scale.w(8)
+            btn_y = rect.y + rect.h - btn_h - scale.h(8)
+            btn_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
+            btn_hovered = btn_rect.collidepoint(mouse) and affordable
+
+            if affordable:
+                fill = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
+                fill.fill((*PRIMARY, 40 if btn_hovered else 15))
+                surface.blit(fill, btn_rect.topleft)
+                pygame.draw.rect(surface, PRIMARY if btn_hovered else SECONDARY, btn_rect, 1, border_radius=2)
+                txt = f_ver.render("BUY", True, PRIMARY if btn_hovered else TEXT_WHITE)
+            else:
+                pygame.draw.rect(surface, TEXT_DIM, btn_rect, 1, border_radius=2)
+                txt = f_ver.render("BUY", True, TEXT_DIM)
+            surface.blit(txt, (btn_rect.centerx - txt.get_width() // 2,
+                               btn_rect.centery - txt.get_height() // 2))
+
+            self._card_rects.append((rect, title, versions, ver_idx, btn_rect, affordable))
+
+        # Page indicator
+        if total_pages > 1:
+            f_pg = get_font(scale.fs(13), light=True)
+            page = self.scroll + 1
+            txt = f_pg.render(f"Page {page}/{total_pages}  ({len(groups)} tools)", True, TEXT_DIM)
+            surface.blit(txt, (scale.x(SCR_X + SCR_W // 2 - 80),
+                               scale.y(card_start_y + 4 * (self.CARD_H + 12) + 8)))
 
     def handle_event(self, event, scale, state):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            cy = CONTENT_Y + 42 + 44
-            max_vis = 18
-            sw_list = state.software_list
-            visible = sw_list[self.scroll:self.scroll + max_vis]
-            for i, sw in enumerate(visible):
-                y = cy + i * ROW_H
-                btn_rect = scale.rect(SCR_X + SCR_W - 120, y + 3, 100, 22)
+            for rect, title, versions, ver_idx, btn_rect, affordable in self._card_rects:
+                # BUY button
                 if btn_rect.collidepoint(event.pos):
-                    cost = sw.get("cost", 0)
-                    if state.balance >= cost:
+                    sw = versions[ver_idx]
+                    if affordable:
                         self.net.buy_software(sw["title"])
                         self.net.get_balance()
                         self.net.get_gateway_files()
                         audio.play_sfx("buy")
-                        self.statusbar.show(f"Purchased: {sw['title']}")
+                        self.statusbar.show(f"Purchased: {sw['title']} v{sw.get('version',1):.0f}")
                     else:
                         audio.play_sfx("error")
                         self.statusbar.show("Insufficient funds")
                     return
 
+                # Version dots (cycle through versions on card click)
+                if rect.collidepoint(event.pos) and len(versions) > 1:
+                    cur = self._selected_versions.get(title, len(versions) - 1)
+                    # Check if clicking in the right column (version area)
+                    if event.pos[0] > rect.right - scale.w(30):
+                        next_ver = (cur + 1) % len(versions)
+                        self._selected_versions[title] = next_ver
+                        audio.play_sfx("popup")
+                        return
+
         if event.type == pygame.MOUSEWHEEL:
-            self.scroll = max(0, min(self.scroll - event.y, max(0, len(state.software_list) - 18)))
+            total_pages = (len(self._groups) + self.CARDS_PER_PAGE - 1) // self.CARDS_PER_PAGE if self._groups else 1
+            self.scroll = max(0, min(self.scroll - event.y, total_pages - 1))
 
 
 # ============================================================================
