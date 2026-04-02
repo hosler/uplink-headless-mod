@@ -134,5 +134,83 @@ class EmailView(BaseTabView):
                 self._body_text.text_size = (self._body_text.parent.width - 20, None)
 
     def _start_compose(self):
-        # TODO: compose email form
-        pass
+        """Switch right panel to compose mode."""
+        self._composing = True
+        self._body_from.text = "COMPOSE EMAIL"
+        self._body_subject.text = ""
+        self._body_text.text = ""
+
+        # Remove existing right panel content and replace with compose form
+        right = self._body_from.parent
+        if not right:
+            return
+
+        # Remove body scroll and compose button
+        to_remove = [w for w in right.children if w not in (self._body_from,)]
+        for w in to_remove:
+            right.remove_widget(w)
+
+        # Compose fields
+        fields = BoxLayout(orientation='vertical', spacing=8, padding=[0, 5])
+
+        for label_text, hint, key in [
+            ("TO:", "recipient@company.net", "to"),
+            ("SUBJECT:", "Subject", "subject"),
+            ("BODY:", "Message body", "body"),
+            ("ATTACH:", "Filename (optional)", "attach"),
+        ]:
+            lbl = Label(text=label_text, font_name='AeroMatics', font_size='13sp',
+                        color=SECONDARY, size_hint_y=None, height=18, halign='left')
+            lbl.bind(size=lbl.setter('text_size'))
+            inp = HackerTextInput(hint_text=hint, size_hint_y=None, height=36)
+            fields.add_widget(lbl)
+            fields.add_widget(inp)
+            if not hasattr(self, '_compose_inputs'):
+                self._compose_inputs = {}
+            self._compose_inputs[key] = inp
+
+        # Buttons
+        btn_row = BoxLayout(size_hint_y=None, height=38, spacing=10)
+        send_btn = HackerButton(text='SEND', button_color=SUCCESS, font_size='14sp')
+        send_btn.bind(on_release=lambda *_: self._do_send())
+        cancel_btn = HackerButton(text='CANCEL', button_color=SECONDARY, font_size='14sp')
+        cancel_btn.bind(on_release=lambda *_: self._cancel_compose())
+        btn_row.add_widget(send_btn)
+        btn_row.add_widget(cancel_btn)
+        fields.add_widget(btn_row)
+
+        right.add_widget(fields)
+        self._compose_fields_widget = fields
+
+        # Focus first field
+        from kivy.clock import Clock
+        Clock.schedule_once(lambda dt: setattr(self._compose_inputs["to"], 'focus', True), 0.2)
+
+    def _do_send(self):
+        if not self.net or not hasattr(self, '_compose_inputs'):
+            return
+        to = self._compose_inputs["to"].text.strip()
+        subject = self._compose_inputs["subject"].text.strip() or "No subject"
+        body = self._compose_inputs["body"].text.strip() or " "
+        attach = self._compose_inputs["attach"].text.strip() or None
+        if not to:
+            return
+        self.net.send_mail(to, subject, body, attach)
+        self.net.get_inbox()
+        self._cancel_compose()
+
+    def _cancel_compose(self):
+        self._composing = False
+        self._compose_inputs = {}
+        # Rebuild right panel
+        right = self._body_from.parent
+        if right and hasattr(self, '_compose_fields_widget'):
+            right.remove_widget(self._compose_fields_widget)
+        # Re-add body scroll and compose button
+        right = self._body_from.parent
+        if right:
+            body_scroll = ScrollView()
+            self._body_text.text = 'Select a message to read'
+            body_scroll.add_widget(self._body_text)
+            right.add_widget(body_scroll)
+            right.add_widget(self._compose_btn)

@@ -156,29 +156,36 @@ class GameScreen(Screen):
 
     def show_tab(self, tab_name):
         """Show the given tab's view, hide others."""
+        # Remove sidebar from content area before clearing (so it's not destroyed)
+        if hasattr(self, '_sidebar') and self._sidebar.parent == self.content_area:
+            self.content_area.remove_widget(self._sidebar)
+
         self.content_area.clear_widgets()
         view = self._tab_views.get(tab_name)
         if view:
             self.content_area.add_widget(view)
             if hasattr(view, 'on_activate'):
                 view.on_activate()
+
         # Sidebar only on browser when connected
         if hasattr(self, '_sidebar'):
             app = App.get_running_app()
             connected = app.net.state.player.get("connected", False) if app.net else False
             self._sidebar.visible = tab_name == "Browser" and connected
-            if self._sidebar.visible and self._sidebar.parent != self.content_area:
+            if self._sidebar.visible:
                 self.content_area.add_widget(self._sidebar)
-            elif not self._sidebar.visible and self._sidebar.parent:
-                self._sidebar.parent.remove_widget(self._sidebar)
+            else:
+                self._sidebar.clear_all()
 
     def update_views(self, state):
         """Update the active content view with fresh state."""
-        tab_name = TAB_NAMES[self.tabbar.active_tab] if self.tabbar else "Browser"
-        view = self._tab_views.get(tab_name)
-        if view and hasattr(view, 'update_state'):
-            view.update_state(state)
-
-        # Update sidebar
-        if hasattr(self, '_sidebar') and self._sidebar.visible:
-            self._sidebar.update_state(state)
+        try:
+            tab_name = TAB_NAMES[self.tabbar.active_tab] if self.tabbar else "Browser"
+            view = self._tab_views.get(tab_name)
+            if view and hasattr(view, 'update_state'):
+                view.update_state(state)
+            # Update sidebar
+            if hasattr(self, '_sidebar') and self._sidebar.visible:
+                self._sidebar.update_state(state)
+        except Exception:
+            pass  # Don't crash on state update errors

@@ -58,6 +58,9 @@ class ScreenHost(RelativeLayout):
         if key == "company_info":
             from browser.renderers.company_info import CompanyInfoRenderer
             return CompanyInfoRenderer
+        if key == "rankings":
+            from browser.renderers.rankings import RankingsRenderer
+            return RankingsRenderer
         if key == "news":
             from browser.renderers.news import NewsRenderer
             return NewsRenderer
@@ -90,6 +93,8 @@ class ScreenHost(RelativeLayout):
             return "console"
         if any(n.startswith("companyscreen_") for n in btn_names):
             return "company_info"
+        if "ranking" in subtitle:
+            return "rankings"
         if "news" in subtitle:
             return "news"
         if ("file" in subtitle or "server" in subtitle) and "news" not in subtitle:
