@@ -5,7 +5,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty
 from kivy.graphics import Color, Line
 
-from theme.colors import PRIMARY, SECONDARY, TEXT_DIM, PANEL_BG
+from theme.colors import PRIMARY, SECONDARY, TEXT_DIM, TEXT_WHITE, PANEL_BG
+from widgets.hacker_button import HackerButton
 
 
 class BaseRenderer(RelativeLayout):
@@ -32,8 +33,22 @@ class BaseRenderer(RelativeLayout):
         )
         self._subtitle_label.bind(size=self._subtitle_label.setter('text_size'))
 
+        # Back button (top-left)
+        self._back_btn = HackerButton(
+            text='\u25c0 BACK', font_size='13sp',
+            size_hint=(None, None), size=(90, 30),
+            pos_hint={'x': 0.02, 'top': 0.97},
+            button_color=SECONDARY,
+        )
+        self._back_btn.bind(on_release=lambda *_: self._go_back())
+
         self.add_widget(self._title_label)
         self.add_widget(self._subtitle_label)
+        self.add_widget(self._back_btn)
+
+    def _go_back(self):
+        if self.net:
+            self.net.back()
 
     def update_state(self, state):
         """Called each poll cycle. Update title and delegate to subclass."""

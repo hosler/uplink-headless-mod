@@ -135,20 +135,23 @@ class EmailView(BaseTabView):
 
     def _start_compose(self):
         """Switch right panel to compose mode."""
+        if self._composing:
+            return  # Already composing
         self._composing = True
-        self._body_from.text = "COMPOSE EMAIL"
-        self._body_subject.text = ""
-        self._body_text.text = ""
+        self._compose_inputs = {}
 
-        # Remove existing right panel content and replace with compose form
+        # Save right panel ref
         right = self._body_from.parent
         if not right:
             return
+        self._right_panel = right
 
-        # Remove body scroll and compose button
-        to_remove = [w for w in right.children if w not in (self._body_from,)]
+        # Remove all children except the header label
+        to_remove = [w for w in list(right.children) if w != self._body_from]
         for w in to_remove:
             right.remove_widget(w)
+
+        self._body_from.text = "COMPOSE EMAIL"
 
         # Compose fields
         fields = BoxLayout(orientation='vertical', spacing=8, padding=[0, 5])
@@ -165,8 +168,6 @@ class EmailView(BaseTabView):
             inp = HackerTextInput(hint_text=hint, size_hint_y=None, height=36)
             fields.add_widget(lbl)
             fields.add_widget(inp)
-            if not hasattr(self, '_compose_inputs'):
-                self._compose_inputs = {}
             self._compose_inputs[key] = inp
 
         # Buttons
@@ -184,33 +185,53 @@ class EmailView(BaseTabView):
 
         # Focus first field
         from kivy.clock import Clock
-        Clock.schedule_once(lambda dt: setattr(self._compose_inputs["to"], 'focus', True), 0.2)
+        Clock.schedule_once(lambda dt: setattr(self._compose_inputs.get("to", self), 'focus', True), 0.2)
 
     def _do_send(self):
-        if not self.net or not hasattr(self, '_compose_inputs'):
+        if not self.net or not self._compose_inputs:
             return
-        to = self._compose_inputs["to"].text.strip()
-        subject = self._compose_inputs["subject"].text.strip() or "No subject"
-        body = self._compose_inputs["body"].text.strip() or " "
-        attach = self._compose_inputs["attach"].text.strip() or None
-        if not to:
-            return
-        self.net.send_mail(to, subject, body, attach)
-        self.net.get_inbox()
+        try:
+            to = self._compose_inputs["to"].text.strip()
+            subject = self._compose_inputs["subject"].text.strip() or "No subject"
+            body = self._compose_inputs["body"].text.strip() or " "
+            attach = self._compose_inputs["attach"].text.strip() or None
+            if not to:
+                return
+            self.net.send_mail(to, subject, body, attach)
+            self.net.get_inbox()
+            if self.statusbar:
+                self.statusbar.show("Email sent!")
+        except Exception as e:
+            print(f"Send error: {e}")
         self._cancel_compose()
 
     def _cancel_compose(self):
         self._composing = False
         self._compose_inputs = {}
-        # Rebuild right panel
-        right = self._body_from.parent
-        if right and hasattr(self, '_compose_fields_widget'):
-            right.remove_widget(self._compose_fields_widget)
-        # Re-add body scroll and compose button
-        right = self._body_from.parent
-        if right:
-            body_scroll = ScrollView()
+        try:
+            # Just rebuild the entire right panel from scratch
+            right = getattr(self, '_right_panel', None) or self._body_from.parent
+            if not right:
+                return
+            right.clear_widgets()
+
+            # Re-add header labels
+            right.add_widget(self._body_from)
+            right.add_widget(self._body_subject)
+
+            # Body scroll (fresh)
+            if self._body_text.parent:
+                self._body_text.parent.remove_widget(self._body_text)
+            self._body_from.text = ""
+            self._body_subject.text = ""
             self._body_text.text = 'Select a message to read'
+            body_scroll = ScrollView()
             body_scroll.add_widget(self._body_text)
             right.add_widget(body_scroll)
+
+            # Compose button
+            if self._compose_btn.parent:
+                self._compose_btn.parent.remove_widget(self._compose_btn)
             right.add_widget(self._compose_btn)
+        except Exception as e:
+            print(f"Cancel compose error: {e}")

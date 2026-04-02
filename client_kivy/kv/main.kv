@@ -225,10 +225,17 @@
         size_hint_x: 1
         halign: 'center'
 
-    # Trace bar
+    # Trace indicator
+    Label:
+        text: 'TRACE:' if root.trace_active else ''
+        font_name: 'AeroMatics'
+        font_size: sp(10)
+        color: (211/255, 26/255, 26/255, 1) if root.trace_progress > 0.7 else app.c_secondary
+        size_hint_x: None
+        width: dp(40) if root.trace_active else dp(0)
     HackerProgressBar:
         size_hint: (None, None)
-        width: dp(200)
+        width: dp(160) if root.trace_active else dp(0)
         height: dp(16)
         pos_hint: {'center_y': 0.5}
         value: root.trace_progress

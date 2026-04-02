@@ -64,49 +64,52 @@ class RunningApp:
 
 
 class RunningSlot(BoxLayout):
-    """UI for a running tool — shows pulsing indicator, name, stop button."""
+    """UI for a running tool — dark bg, colored accent."""
     def __init__(self, running_app, on_stop=None, **kwargs):
-        super().__init__(orientation='horizontal', size_hint_y=None, height=38,
-                         spacing=4, padding=[4, 2], **kwargs)
+        super().__init__(orientation='horizontal', size_hint_y=None, height=34,
+                         spacing=4, padding=[6, 2], **kwargs)
         self.running_app = running_app
         self._on_stop = on_stop
         color = running_app.color
 
         with self.canvas.before:
-            Color(*PANEL_BG, 0.9)
+            Color(PANEL_BG[0] * 1.2, PANEL_BG[1] * 1.2, PANEL_BG[2] * 1.2, 1)
             self._bg = Rectangle(pos=self.pos, size=self.size)
-            Color(*color[:3], 0.5)
-            self._border = Line(rectangle=[*self.pos, *self.size], width=1)
+            Color(*color[:3], 0.6)
+            self._border = Line(rectangle=[*self.pos, *self.size], width=1.2)
+            # Left accent bar
+            Color(*color[:3], 0.8)
+            self._accent = Line(points=[self.x, self.y, self.x, self.top], width=2.5)
         self.bind(pos=self._upd, size=self._upd)
 
-        # Pulsing indicator
-        self._indicator = Label(text='\u25c6', font_size='10sp', color=color,
-                                size_hint_x=None, width=18)
+        # Icon
+        icon = Label(text=running_app.icon, font_name='AeroMatics', font_size='12sp',
+                     color=color, size_hint_x=None, width=24,
+                     halign='center', valign='middle')
+        icon.bind(size=icon.setter('text_size'))
         # Name
-        name = Label(text=running_app.title.replace("_", " ")[:12],
-                     font_name='AeroMaticsLight', font_size='11sp',
+        name = Label(text=running_app.title.replace("_", " ")[:10],
+                     font_name='AeroMatics', font_size='11sp',
                      color=TEXT_WHITE, halign='left', valign='middle')
         name.bind(size=name.setter('text_size'))
-        # Status
-        self._status = Label(text='ACTIVE', font_name='AeroMatics', font_size='9sp',
-                             color=SUCCESS, size_hint_x=None, width=50)
-        # Stop
-        stop_btn = Label(text='X', font_name='AeroMatics', font_size='12sp',
-                         color=ALERT, size_hint_x=None, width=20)
+        # Stop X
+        stop_btn = Label(text='\u2715', font_name='AeroMatics', font_size='11sp',
+                         color=ALERT, size_hint_x=None, width=18,
+                         halign='center', valign='middle')
+        stop_btn.bind(size=stop_btn.setter('text_size'))
 
-        self.add_widget(self._indicator)
+        self.add_widget(icon)
         self.add_widget(name)
-        self.add_widget(self._status)
         self.add_widget(stop_btn)
 
     def _upd(self, *_):
         self._bg.pos = self.pos
         self._bg.size = self.size
         self._border.rectangle = [*self.pos, *self.size]
+        self._accent.points = [self.x, self.y, self.x, self.top]
 
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            # Click on X to stop
+        if self.collide_point(*touch.pos) and touch.button == 'left':
             if self._on_stop:
                 self._on_stop(self.running_app)
             return True
@@ -114,10 +117,10 @@ class RunningSlot(BoxLayout):
 
 
 class ToolSlot(BoxLayout):
-    """Available tool in the sidebar."""
+    """Available tool in the sidebar — dark themed."""
     def __init__(self, title, tool_info, on_run=None, **kwargs):
-        super().__init__(orientation='horizontal', size_hint_y=None, height=38,
-                         spacing=6, padding=[4, 2], **kwargs)
+        super().__init__(orientation='horizontal', size_hint_y=None, height=34,
+                         spacing=6, padding=[6, 2], **kwargs)
         self.title = title
         self._on_run = on_run
 
@@ -125,19 +128,19 @@ class ToolSlot(BoxLayout):
         color = tool_info.get("color", SECONDARY)
 
         with self.canvas.before:
-            Color(*PANEL_BG, 0.85)
+            Color(PANEL_BG[0], PANEL_BG[1], PANEL_BG[2], 1)
             self._bg = Rectangle(pos=self.pos, size=self.size)
-            Color(*color[:3], 0.2)
+            Color(*color[:3], 0.25)
             self._border = Line(rectangle=[*self.pos, *self.size], width=0.8)
         self.bind(pos=self._upd, size=self._upd)
 
         icon = Label(text=icon_text, font_name='AeroMatics', font_size='12sp',
-                     color=color, size_hint_x=None, width=28,
+                     color=color, size_hint_x=None, width=26,
                      halign='center', valign='middle')
         icon.bind(size=icon.setter('text_size'))
 
-        short_name = title.replace("_", " ")[:14]
-        name = Label(text=short_name, font_name='AeroMaticsLight', font_size='11sp',
+        short_name = title.replace("_", " ")[:12]
+        name = Label(text=short_name, font_name='AeroMatics', font_size='11sp',
                      color=TEXT_WHITE, halign='left', valign='middle')
         name.bind(size=name.setter('text_size'))
 
@@ -165,7 +168,7 @@ class AppSidebar(BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
-        self.size_hint = (None, None)
+        self.size_hint = (None, 1)
         self.width = 170
         self.padding = [4, 4]
         self.spacing = 2
@@ -173,9 +176,9 @@ class AppSidebar(BoxLayout):
         self.running = []  # list of RunningApp
 
         with self.canvas.before:
-            Color(*PANEL_BG, 0.92)
+            Color(8/255, 16/255, 26/255, 0.95)
             self._bg = Rectangle(pos=self.pos, size=self.size)
-            Color(*SECONDARY[:3], 0.3)
+            Color(*SECONDARY[:3], 0.4)
             self._border = Line(rectangle=[*self.pos, *self.size], width=1)
         self.bind(pos=self._upd_bg, size=self._upd_bg, visible=self._on_visible)
 
@@ -260,19 +263,18 @@ class AppSidebar(BoxLayout):
                     slot = ToolSlot(name, info, on_run=self._run_tool)
                     self._tool_list.add_widget(slot)
 
-        # Update running list
-        self._running_list.clear_widgets()
-        for ra in self.running:
-            slot = RunningSlot(ra, on_stop=self._stop_tool)
-            self._running_list.add_widget(slot)
+        # Update running list only if changed
+        running_keys = [r.title for r in self.running]
+        if running_keys != getattr(self, '_last_running', []):
+            self._last_running = running_keys
+            self._running_list.clear_widgets()
+            for ra in self.running:
+                slot = RunningSlot(ra, on_stop=self._stop_tool)
+                self._running_list.add_widget(slot)
 
-        # Show/hide labels
-        self._running_label.opacity = 1 if self.running else 0
-        self._running_label.height = 16 if self.running else 0
-
-        # Adjust height
-        total = len(tools) + len(self.running)
-        self.height = min(total * 42 + 60, self.parent.height * 0.7 if self.parent else 400)
+            # Show/hide labels
+            self._running_label.opacity = 1 if self.running else 0
+            self._running_label.height = 16 if self.running else 0
 
     def _run_tool(self, name):
         # Check not already running

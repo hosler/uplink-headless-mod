@@ -184,8 +184,30 @@ class GameScreen(Screen):
             view = self._tab_views.get(tab_name)
             if view and hasattr(view, 'update_state'):
                 view.update_state(state)
-            # Update sidebar
-            if hasattr(self, '_sidebar') and self._sidebar.visible:
-                self._sidebar.update_state(state)
+
+            # Sidebar: show/hide based on connection + tab
+            if hasattr(self, '_sidebar'):
+                connected = state.player.get("connected", False)
+                should_show = tab_name == "Browser" and connected
+                if should_show and not self._sidebar.visible:
+                    self._sidebar.visible = True
+                    if self._sidebar.parent != self.content_area:
+                        self.content_area.add_widget(self._sidebar)
+                    # Request gateway files for tool list (once per second max)
+                    app = App.get_running_app()
+                    now = __import__('time').time()
+                    last_req = getattr(self, '_gw_last_req', 0)
+                    if app.net and not state.gateway_files and now - last_req > 1.0:
+                        self._gw_last_req = now
+                        app.net.get_gateway_files()
+                elif not should_show and self._sidebar.visible:
+                    self._sidebar.visible = False
+                    self._gw_last_req = 0
+                    if self._sidebar.parent:
+                        self._sidebar.parent.remove_widget(self._sidebar)
+                    self._sidebar.clear_all()
+
+                if self._sidebar.visible:
+                    self._sidebar.update_state(state)
         except Exception:
             pass  # Don't crash on state update errors

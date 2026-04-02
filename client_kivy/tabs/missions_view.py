@@ -129,5 +129,31 @@ class MissionsView(BaseTabView):
             self._complete_btn.opacity = 1
 
     def _check_mission(self):
-        if self.net:
-            self.net.check_mission()
+        """Switch to Email tab with pre-drafted completion email."""
+        if not self.net or self._selected < 0 or self._selected >= len(self._missions):
+            return
+        m = self._missions[self._selected]
+        contact = m.get("contact", m.get("employer", ""))
+        description = m.get("description", m.get("title", "Mission"))
+
+        # Switch to Email tab and start compose with pre-filled fields
+        from kivy.app import App
+        app = App.get_running_app()
+        if app._game and app._game.tabbar:
+            app._game.tabbar.switch_to(2)  # Email tab (index 2)
+            # Get the email view and start compose
+            email_view = app._game._tab_views.get("Email")
+            if email_view:
+                email_view._start_compose()
+                # Pre-fill fields after a short delay (compose form needs to build)
+                from kivy.clock import Clock
+                def _prefill(dt):
+                    if hasattr(email_view, '_compose_inputs') and email_view._compose_inputs:
+                        inp = email_view._compose_inputs
+                        if "to" in inp:
+                            inp["to"].text = contact
+                        if "subject" in inp:
+                            inp["subject"].text = "Mission completed"
+                        if "body" in inp:
+                            inp["body"].text = f"I have completed the following mission:\n{description}"
+                Clock.schedule_once(_prefill, 0.3)
