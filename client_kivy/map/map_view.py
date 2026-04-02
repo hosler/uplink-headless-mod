@@ -73,6 +73,17 @@ class MapView(Widget):
             Color(8 / 255, 14 / 255, 22 / 255, 1)
             Rectangle(pos=self.pos, size=self.size)
 
+            # Title
+            title_cl = CoreLabel(text='W O R L D   M A P', font_size=18,
+                                 color=(*PRIMARY[:3], 0.7))
+            title_cl.refresh()
+            ttex = title_cl.texture
+            if ttex:
+                Color(1, 1, 1, 1)
+                Rectangle(texture=ttex,
+                          pos=(ox + w / 2 - ttex.width / 2, oy + h - ttex.height - 8),
+                          size=ttex.size)
+
             # Grid
             Color(18 / 255, 30 / 255, 42 / 255, 0.6)
             cols = 8
@@ -158,23 +169,31 @@ class MapView(Widget):
 
                 is_connected = ip in self._connection_nodes
                 label_text = name[:20] if name else ip
-                label_color = TEXT_WHITE if is_connected else TEXT_DIM
-                cl = CoreLabel(text=label_text, font_size=11,
-                               color=(*label_color[:3], 0.9))
+
+                # Dark background behind label for readability
+                cl = CoreLabel(text=label_text, font_size=12,
+                               color=(0.9, 0.95, 1, 1) if is_connected else (0.6, 0.75, 0.9, 1))
                 cl.refresh()
                 tex = cl.texture
                 if tex:
+                    # Shadow/bg behind text
+                    Color(0.02, 0.04, 0.08, 0.8)
+                    Rectangle(pos=(px - tex.width / 2 - 3, py - 22),
+                              size=(tex.width + 6, tex.height + 2))
                     Color(1, 1, 1, 1)
                     Rectangle(texture=tex,
                               pos=(px - tex.width / 2, py - 20),
                               size=tex.size)
                 # IP label below name
                 if name:
-                    cl2 = CoreLabel(text=ip, font_size=9,
-                                    color=(*TEXT_DIM[:3], 0.5))
+                    cl2 = CoreLabel(text=ip, font_size=10,
+                                    color=(0.4, 0.55, 0.7, 0.8))
                     cl2.refresh()
                     tex2 = cl2.texture
                     if tex2:
+                        Color(0.02, 0.04, 0.08, 0.7)
+                        Rectangle(pos=(px - tex2.width / 2 - 2, py - 34),
+                                  size=(tex2.width + 4, tex2.height + 2))
                         Color(1, 1, 1, 1)
                         Rectangle(texture=tex2,
                                   pos=(px - tex2.width / 2, py - 32),

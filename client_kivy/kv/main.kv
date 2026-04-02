@@ -46,8 +46,8 @@
 
 
 <TopBar>:
-    padding: [dp(15), 0]
-    spacing: dp(20)
+    padding: [dp(15), dp(4)]
+    spacing: dp(15)
 
     canvas.before:
         Color:
@@ -65,14 +65,14 @@
     Label:
         text: 'AGENT:'
         font_name: 'AeroMaticsLight'
-        font_size: sp(11)
+        font_size: sp(13)
         color: app.c_secondary
         size_hint_x: None
-        width: dp(50)
+        width: dp(55)
     Label:
         text: root.agent_handle.upper() if root.agent_handle else ''
         font_name: 'AeroMatics'
-        font_size: sp(18)
+        font_size: sp(17)
         color: app.c_primary
         size_hint_x: None
         width: dp(140)
@@ -83,10 +83,10 @@
     Label:
         text: 'HOST:'
         font_name: 'AeroMaticsLight'
-        font_size: sp(11)
+        font_size: sp(13)
         color: app.c_secondary
         size_hint_x: None
-        width: dp(40)
+        width: dp(45)
     Label:
         text: root.remote_host if root.remote_host else ''
         font_name: 'AeroMatics'
@@ -109,10 +109,10 @@
     Label:
         text: 'CREDITS:'
         font_name: 'AeroMaticsLight'
-        font_size: sp(11)
+        font_size: sp(13)
         color: app.c_secondary
         size_hint_x: None
-        width: dp(60)
+        width: dp(65)
     Label:
         text: '{:,}c'.format(int(root.balance))
         font_name: 'AeroMatics'

@@ -32,14 +32,14 @@ class CRTOverlay(Widget):
 
         for y in range(th):
             # Scanline: every 3rd row
-            scanline = 18 if y % 3 == 0 else 0
+            scanline = 10 if y % 3 == 0 else 0
             for x in range(tw):
                 idx = (y * tw + x) * 4
                 # Vignette
                 dx = (x - cx) / cx
                 dy = (y - cy) / cy
                 dist = (dx * dx + dy * dy) ** 0.5
-                vignette = int(min(50, max(0, (dist - 0.5) * 90)))
+                vignette = int(min(35, max(0, (dist - 0.6) * 70)))
                 total = min(255, scanline + vignette)
                 buf[idx] = 0
                 buf[idx + 1] = 0

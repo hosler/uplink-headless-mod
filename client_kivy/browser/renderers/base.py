@@ -35,10 +35,10 @@ class BaseRenderer(RelativeLayout):
 
         # Back button (top-left)
         self._back_btn = HackerButton(
-            text='\u25c0 BACK', font_size='13sp',
-            size_hint=(None, None), size=(90, 30),
+            text='\u25c0 BACK', font_size='14sp',
+            size_hint=(None, None), size=(100, 32),
             pos_hint={'x': 0.02, 'top': 0.97},
-            button_color=SECONDARY,
+            button_color=PRIMARY,
         )
         self._back_btn.bind(on_release=lambda *_: self._go_back())
 
