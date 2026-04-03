@@ -322,8 +322,11 @@ class Network:
     def get_hardware_list(self):
         self.send({"cmd": "hardware_list"})
 
-    def buy_software(self, title):
-        self.send({"cmd": "buy_software", "title": title}, refresh_state=True)
+    def buy_software(self, title, version=None):
+        msg = {"cmd": "buy_software", "title": title}
+        if version is not None:
+            msg["version"] = version
+        self.send(msg, refresh_state=True)
 
     def buy_hardware(self, title):
         self.send({"cmd": "buy_hardware", "title": title}, refresh_state=True)

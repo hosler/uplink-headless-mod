@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <math.h>
 #include <vector>
 
 #include <unistd.h>
@@ -173,6 +174,17 @@ static int extract_int ( const char *json, const char *key )
     p += strlen(pattern);
     while ( *p == ' ' || *p == ':' ) p++;
     return atoi(p);
+}
+
+static double extract_double ( const char *json, const char *key )
+{
+    char pattern[128];
+    snprintf ( pattern, sizeof(pattern), "\"%s\"", key );
+    const char *p = strstr ( json, pattern );
+    if ( !p ) return -1.0;
+    p += strlen(pattern);
+    while ( *p == ' ' || *p == ':' ) p++;
+    return atof(p);
 }
 
 // ============================================================================
@@ -966,12 +978,28 @@ static void handle_command ( const char *json, ClientConn *conn )
             Sale *sale = cu->sw_sales.GetData(i);
             if ( !sale || strcmp(sale->title, title) != 0 ) continue;
 
-            // Get first real version (index 0 is dummy with -1 values)
+            // Find requested version, or default to first real version
+            double req_ver = extract_double(json, "version");
+
             SaleVersion *sv = NULL;
-            for ( int v = 1; v < sale->versions.Size(); v++ ) {
-                sv = sale->versions.GetData(v);
-                if ( sv && sv->cost >= 0 ) break;
-                sv = NULL;
+            if ( req_ver > 0 ) {
+                // Find specific version
+                for ( int v = 1; v < sale->versions.Size(); v++ ) {
+                    SaleVersion *candidate = sale->versions.GetData(v);
+                    if ( candidate && candidate->cost >= 0 &&
+                         fabs((float)candidate->data - req_ver) < 0.01 ) {
+                        sv = candidate;
+                        break;
+                    }
+                }
+            }
+            if ( !sv ) {
+                // Fallback: first real version
+                for ( int v = 1; v < sale->versions.Size(); v++ ) {
+                    sv = sale->versions.GetData(v);
+                    if ( sv && sv->cost >= 0 ) break;
+                    sv = NULL;
+                }
             }
             if ( !sv ) continue;
 
@@ -1020,8 +1048,8 @@ static void handle_command ( const char *json, ClientConn *conn )
                 first = false;
                 char buf[256];
                 snprintf(buf, sizeof(buf),
-                    "{\"title\":\"%s\",\"cost\":%d,\"size\":%d,\"version\":%.1f}",
-                    json_escape(sale->title).c_str(), sv->cost, sv->size, (float)sv->data);
+                    "{\"title\":\"%s\",\"cost\":%d,\"size\":%d,\"version\":%.1f,\"type\":%d}",
+                    json_escape(sale->title).c_str(), sv->cost, sv->size, (float)sv->data, sale->swhwTYPE);
                 s += buf;
             }
         }
