@@ -1,8 +1,8 @@
-# Uplink RE — Headless Multiplayer Server + Pygame Client
+# Uplink RE — Headless Multiplayer Server + Kivy Client
 
 ## Current Goal
 
-Polish and extend the pygame client. All content tabs, server screen types, and core gameplay mechanics are complete. Focus areas: remaining server screen subtypes (Rankings), software running system, LAN interactivity, and web client.
+Polish and extend the Kivy client (`client_kivy/`). The pygame client (`client/`) is legacy. Focus areas: gameplay polish, remaining interactivity (bounce routing, stock market), web client.
 
 ## Quick Start
 
@@ -17,21 +17,28 @@ export LD_LIBRARY_PATH="$PWD/../../contrib/FTGL-2.1.2/unix/src/.libs"
 ```
 ~1s startup on warm cache. Wait for port 9090.
 
-### Client
+### Kivy Client (primary)
 ```bash
 source client/.venv/bin/activate
-python3 client/uplink_client.py
+python3 client_kivy/main.py --no-music
 ```
-Optional flags: `--no-music`, `--debug-log /tmp/debug.json`, `--light-theme`
+Optional flags: `--debug-log /tmp/debug.json`, `--auto-join AgentName`, `--auto-connect 128.185.0.4`, `--auto-crack`
 
-### Auto-testing (skip login UI)
+### Pygame Client (legacy)
 ```bash
-python3 client/uplink_client.py --auto-join AgentName --auto-connect 128.185.0.4 --auto-crack
+python3 client/uplink_client.py --no-music
 ```
 
-### Tests (all use keyboard shortcuts — no coordinate dependencies)
+### Tests
 ```bash
 source client/.venv/bin/activate
+# Kivy client tests (Xvfb, no visible window)
+python3 client_kivy/test_ui.py             # 13/13 basic UI
+python3 client_kivy/test_comprehensive.py  # 35/35 tabs, connect, stress
+python3 client_kivy/test_gameplay.py       # 24/25 missions, economy, files
+python3 client_kivy/test_everything.py     # 86+/93 ALL game mechanics (socket API)
+
+# Legacy pygame tests
 cd client
 python3 test_ui.py           # 16/16 basic UI
 DARK_THEME=1 python3 test_ui_deep.py  # 7/7 server flows
@@ -150,22 +157,30 @@ MessageScreen, MenuScreen, DialogScreen, PasswordScreen, UserIDScreen, HighSecur
 - Light theme support with adjusted colors
 - WARNING theme color for gold/yellow elements
 
-## Remaining TODO
+## Remaining TODO (Kivy Client)
 
 ### High Priority
-- **Rankings renderer**: GenericScreen subtype on Uplink ISS (currently shows subtitle only)
-- **Software running system**: Run tools (Log_Deleter, Decrypter) on targets via sidebar
-- **HighSecurityScreen interactivity**: 3-factor challenge UI (voice, cypher bypass)
-- **Populated BBS/Email screenshots**: Need game time to pass for mission generation
+- **Bounce routing UI**: Right-click map nodes to build bounce chain before connecting
+- **Stock Market**: Dedicated renderer for trading UI
+- **World persistence**: Save/restore across server restarts
 
 ### Medium Priority
-- **LAN interactivity**: Navigate LAN nodes, hack systems
-- **World persistence**: Save/restore across server restarts
-- **Email compose**: Functional compose form with attachments
+- **Web client**: WebSocket bridge for browser-based play
+- **Password crack animation**: Character-cycling DECRYPTION display in PasswordRenderer
+- **Populated BBS/Email**: Need game time to pass for mission generation
 
 ### Low Priority
-- **Web client**: WebSocket bridge for browser-based play
-- **Stock Market**: Requires dedicated renderer for trading UI
+- **More visual polish**: Gemini suggested category icons on software cards, segmented memory bar
+
+### Completed (Kivy Client)
+- Rankings renderer, HighSecurity 3-factor UI, LAN node graph with connect
+- Software running system (sidebar with RunningApp tracking)
+- Email compose with attachment dropdown
+- Context menus (right-click files/logs) with progress bars
+- Single log deletion (new server command: delete_log)
+- All 14 screen renderers, 6 content tabs, map, sidebar
+- CRT overlay, audio, keyboard shortcuts
+- 5 rounds of Gemini review (10/10 final scores)
 
 ## Build Gotchas
 - `export PATH="$PWD/bin:$PATH"` (apgcc/apg++ wrappers needed)
