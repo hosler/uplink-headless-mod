@@ -33,11 +33,11 @@ class BaseRenderer(RelativeLayout):
         )
         self._subtitle_label.bind(size=self._subtitle_label.setter('text_size'))
 
-        # Back button (top-left)
+        # Back button (top-left, right of sidebar)
         self._back_btn = HackerButton(
             text='\u25c0 BACK', font_size='14sp',
             size_hint=(None, None), size=(100, 32),
-            pos_hint={'x': 0.02, 'top': 0.97},
+            pos_hint={'x': 0.14, 'top': 0.97},
             button_color=PRIMARY,
         )
         self._back_btn.bind(on_release=lambda *_: self._go_back())

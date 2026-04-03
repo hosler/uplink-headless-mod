@@ -742,6 +742,24 @@ static void handle_command ( const char *json, ClientConn *conn )
         send_response ( client_fd, "ok", detail );
     }
 
+    else if ( strcmp(cmd, "delete_log") == 0 ) {
+        // Delete a single log entry by index
+        if ( !game || !game->IsRunning() ) { send_response(client_fd,"error","no game"); return; }
+        Player *p = game->GetWorld()->GetPlayer();
+        VLocation *vl = game->GetWorld()->GetVLocation( p->remotehost );
+        if ( !vl ) { send_response(client_fd,"error","not connected"); return; }
+        Computer *comp = vl->GetComputer();
+        int index = extract_int(json, "index");
+        if ( index < 0 || index >= comp->logbank.logs.Size() ) {
+            send_response(client_fd,"error","invalid log index");
+            return;
+        }
+        comp->logbank.logs.RemoveData( index );
+        char detail[64];
+        snprintf(detail, sizeof(detail), "deleted log %d", index);
+        send_response ( client_fd, "ok", detail );
+    }
+
     // ---- Semantic: Email ----
 
     else if ( strcmp(cmd, "send_mail") == 0 ) {

@@ -160,7 +160,6 @@ class EmailView(BaseTabView):
             ("TO:", "recipient@company.net", "to"),
             ("SUBJECT:", "Subject", "subject"),
             ("BODY:", "Message body", "body"),
-            ("ATTACH:", "Filename (optional)", "attach"),
         ]:
             lbl = Label(text=label_text, font_name='AeroMatics', font_size='13sp',
                         color=SECONDARY, size_hint_y=None, height=18, halign='left')
@@ -169,6 +168,38 @@ class EmailView(BaseTabView):
             fields.add_widget(lbl)
             fields.add_widget(inp)
             self._compose_inputs[key] = inp
+
+        # Attachment dropdown — populated from gateway files
+        attach_lbl = Label(text='ATTACH:', font_name='AeroMatics', font_size='13sp',
+                          color=SECONDARY, size_hint_y=None, height=18, halign='left')
+        attach_lbl.bind(size=attach_lbl.setter('text_size'))
+        fields.add_widget(attach_lbl)
+
+        from kivy.uix.spinner import Spinner
+        file_options = ['(none)']
+        seen = set()
+        if self.net:
+            gf = self.net.state.gateway_files
+            for f in gf:
+                title = f.get("title", "")
+                if title and title not in seen:
+                    seen.add(title)
+                    file_options.append(title)
+
+        self._attach_spinner = Spinner(
+            text='(none)', values=file_options,
+            size_hint_y=None, height=36,
+            font_name='AeroMatics', font_size='14sp',
+            color=TEXT_WHITE,
+            background_color=(0.08, 0.15, 0.25, 1),
+            background_normal='',
+            background_down='',
+            option_cls=self._make_option_cls(),
+        )
+        # Style the dropdown
+        self._attach_spinner.dropdown_cls.max_height = 300
+        fields.add_widget(self._attach_spinner)
+        self._compose_inputs['attach'] = self._attach_spinner
 
         # Buttons
         btn_row = BoxLayout(size_hint_y=None, height=38, spacing=10)
@@ -187,6 +218,21 @@ class EmailView(BaseTabView):
         from kivy.clock import Clock
         Clock.schedule_once(lambda dt: setattr(self._compose_inputs.get("to", self), 'focus', True), 0.2)
 
+    @staticmethod
+    def _make_option_cls():
+        """Create a dark-themed SpinnerOption class."""
+        from kivy.uix.spinner import SpinnerOption
+        class DarkOption(SpinnerOption):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.font_name = 'AeroMatics'
+                self.font_size = '13sp'
+                self.color = TEXT_WHITE
+                self.background_color = (0.06, 0.12, 0.2, 1)
+                self.background_normal = ''
+                self.background_down = ''
+        return DarkOption
+
     def _do_send(self):
         if not self.net or not self._compose_inputs:
             return
@@ -194,7 +240,12 @@ class EmailView(BaseTabView):
             to = self._compose_inputs["to"].text.strip()
             subject = self._compose_inputs["subject"].text.strip() or "No subject"
             body = self._compose_inputs["body"].text.strip() or " "
-            attach = self._compose_inputs["attach"].text.strip() or None
+            # Attachment from spinner
+            attach_widget = self._compose_inputs.get("attach")
+            if hasattr(attach_widget, 'text'):
+                attach = attach_widget.text if attach_widget.text != '(none)' else None
+            else:
+                attach = None
             if not to:
                 return
             self.net.send_mail(to, subject, body, attach)

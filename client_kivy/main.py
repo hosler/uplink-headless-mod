@@ -280,8 +280,11 @@ class UplinkApp(App):
                 _audio.play_sfx("missionSuccess")
             elif "copied" in detail.lower() or "file" in detail.lower():
                 _audio.play_sfx("success")
-            elif "$" in detail:
+                self.net.get_gateway_files()
+            elif "$" in detail or "purchased" in detail.lower() or "bought" in detail.lower():
                 _audio.play_sfx("buy")
+                # Refresh gateway files so sidebar picks up new software
+                self.net.get_gateway_files()
         elif status == "error":
             if self._game.statusbar:
                 self._game.statusbar.show(f"Error: {detail}")

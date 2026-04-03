@@ -89,17 +89,19 @@ class GatewayView(BaseTabView):
         gi = state.gateway_info
         if gi and gi != self._last_info:
             self._last_info = gi
-            self._model_label.text = gi.get("model", "Unknown Gateway")
+            self._model_label.text = gi.get("model", "Unknown Gateway").strip()
             self._stat_labels["Modem"].text = f"{gi.get('modemspeed', 0)} GHz"
             self._stat_labels["Memory"].text = f"{gi.get('memorysize', 0)} GQ"
             self._stat_labels["Bandwidth"].text = f"{gi.get('bandwidth', 0)} GQs"
             self._stat_labels["Max CPUs"].text = str(gi.get("maxcpus", "?"))
             self._stat_labels["Max Memory"].text = f"{gi.get('maxmemory', 0)} GQ"
 
-            used = gi.get("memoryused", 0)
-            total = gi.get("memorysize", 1)
-            self._mem_bar.value = used / max(total, 1)
-            self._mem_text.text = f"{used}/{total} GQ"
+        # Calculate memory usage from file sizes
+        files = state.gateway_files
+        total_mem = gi.get("memorysize", 24) if gi else 24
+        used_mem = sum(f.get("size", 0) for f in files)
+        self._mem_bar.value = used_mem / max(total_mem, 1)
+        self._mem_text.text = f"{used_mem}/{total_mem} GQ"
 
         files = state.gateway_files
         keys = [(f.get("title", ""), f.get("size", 0)) for f in files]

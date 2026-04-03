@@ -283,6 +283,9 @@ class Network:
     def delete_logs(self):
         self.send({"cmd": "delete_logs"}, refresh_state=True)
 
+    def delete_log(self, index):
+        self.send({"cmd": "delete_log", "index": index}, refresh_state=True)
+
     def send_mail(self, to, subject, body, attach=None):
         cmd = {"cmd": "send_mail", "to": to, "subject": subject, "body": body}
         if attach:
