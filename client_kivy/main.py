@@ -376,6 +376,12 @@ class UplinkApp(App):
                         if child.handle_number_key(int(codepoint)):
                             return True
 
+        # T: toggle task manager
+        if codepoint == 't' and not modifiers:
+            if hasattr(self._game, '_task_mgr'):
+                self._game._task_mgr.toggle()
+                return True
+
         # P: run password breaker
         if codepoint == 'p' and not modifiers:
             st = self.net.state.screen_type if self.net else ""

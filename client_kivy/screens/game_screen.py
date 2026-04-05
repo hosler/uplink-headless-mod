@@ -142,6 +142,10 @@ class GameScreen(Screen):
         self._sidebar.pos_hint = {'x': 0, 'top': 1}
         self._sidebar.on_tool_run = app._on_tool_run
 
+        # Task manager overlay
+        from widgets.task_manager import TaskManager
+        self._task_mgr = TaskManager(size_hint=(1, 1), sidebar=self._sidebar)
+
         # CRT overlay
         from widgets.crt_overlay import CRTOverlay
         self._crt = CRTOverlay(size_hint=(1, 1))
@@ -156,9 +160,11 @@ class GameScreen(Screen):
 
     def show_tab(self, tab_name):
         """Show the given tab's view, hide others."""
-        # Remove sidebar from content area before clearing (so it's not destroyed)
+        # Remove overlays before clearing (so they're not destroyed)
         if hasattr(self, '_sidebar') and self._sidebar.parent == self.content_area:
             self.content_area.remove_widget(self._sidebar)
+        if hasattr(self, '_task_mgr') and self._task_mgr.parent == self.content_area:
+            self.content_area.remove_widget(self._task_mgr)
 
         self.content_area.clear_widgets()
         view = self._tab_views.get(tab_name)
@@ -209,5 +215,13 @@ class GameScreen(Screen):
 
                 if self._sidebar.visible:
                     self._sidebar.update_state(state)
+
+            # Task manager
+            if hasattr(self, '_task_mgr'):
+                self._task_mgr.update_state(state)
+                if self._task_mgr.visible and self._task_mgr.parent != self.content_area:
+                    self.content_area.add_widget(self._task_mgr)
+                elif not self._task_mgr.visible and self._task_mgr.parent == self.content_area:
+                    self.content_area.remove_widget(self._task_mgr)
         except Exception:
             pass  # Don't crash on state update errors
